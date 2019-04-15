@@ -38,6 +38,7 @@ public class StepVrDataStreamCore : ModuleRules
             "CoreUObject",
             "Engine",
             "StepVrPlugin",
+            "Sockets"
         });
 
         bool IsLibrarySupport = false;

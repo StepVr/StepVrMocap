@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <iostream>
 #ifdef FACE_EXPORT
 #define FACE_API __declspec(dllexport)
@@ -33,10 +33,10 @@ namespace GCWT
 
 	struct V4
 	{
-		float w;
 		float x;
 		float y;
 		float z;
+		float w;
 	};
 
 	struct transform

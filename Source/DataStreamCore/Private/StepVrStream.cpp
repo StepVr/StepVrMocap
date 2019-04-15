@@ -5,6 +5,15 @@
 #include "LocalFace.h"
 #include "Animation/AnimInstanceProxy.h"
 
+
+
+#pragma optimize("",off)
+static transform StepVrMocapData[STEPBONESNUMS];
+static TArray<FTransform> UEMocapData;
+
+
+transform GTR;
+
 namespace StepMocapServers
 {
 	static bool IsConnected = false;
@@ -56,6 +65,9 @@ TWeakPtr<FStepMocapStream> StepMocapServers::GetStream(const FMocapServerInfo& I
 
 void ConvertToUE(transform* InData, TArray<FTransform>& OutData)
 {
+
+	GTR = InData[9];
+
 	OutData.Init(FTransform::Identity, STEPBONESNUMS);
 
 	FVector TempVec;
@@ -92,10 +104,11 @@ void ConvertToUE(transform* InData, TArray<FTransform>& OutData)
 }
 void ConvertToUE(GCWT::transform* InData, TArray<FRotator>& OutData)
 {
+	GCWT::transform tr = InData[2];
 	OutData.Init(FRotator::ZeroRotator, STEPHANDBONESNUMS);
 
 	FVector TempVec;
-	FQuat TempQuat;
+	FQuat TempQuat,tmQ;
 
 	static const FQuat QBA = FQuat::FQuat(FVector(0, 0, 1), PI);
 	static const FQuat QTE = FQuat::FQuat(FVector(0, 0, 1), -PI / 2.0).Inverse()*FQuat::FQuat(FVector(1, 0, 0), -PI / 2.0).Inverse();
@@ -107,14 +120,43 @@ void ConvertToUE(GCWT::transform* InData, TArray<FRotator>& OutData)
 		TempQuat.Y = InData[i].Rotation.y;
 		TempQuat.Z = InData[i].Rotation.z;
 		TempQuat.W = InData[i].Rotation.w;
-
-		if (i == 0)
-		{
-			TempQuat = QBA.Inverse()*TempQuat *QBA;
-		}
-		TempQuat = TempQuat * QBA;
+		
+		/*TempQuat.X = -InData[i].Rotation.z;
+		TempQuat.Y = InData[i].Rotation.y;
+		TempQuat.Z = InData[i].Rotation.x;
+		TempQuat.W = InData[i].Rotation.w;*/
+		
+		/*TempQuat = TempQuat * QBA;
 		TempQuat = QTE * TempQuat;
+
+		tmQ.X = TempQuat.X;
+		tmQ.Y = -TempQuat.Z;
+		tmQ.Z = TempQuat.Y;
+		tmQ.W = TempQuat.W;
+
+		TempQuat = tmQ;*/
+		//TempQuat = TempQuat*FQuat::FQuat(FVector(0, 1, 0), PI/2);
+		//TempQuat = TempQuat * QBA;
+		//TempQuat = QTE * TempQuat;
+		TempQuat = TempQuat*QBA;
+		TempQuat = QTE * TempQuat;
+
+		//if (i == 0)
+		//{
+		//	TempQuat = QBA.Inverse()*TempQuat *QBA;
+		//}
+
+		//TempQuat = TempQuat * QBA;
+		
+		//TempQuat.X = -TempQuat.X;
+		//TempQuat.Y = -TempQuat.Y;
+        //TempQuat.Z = -TempQuat.Z;
+		//TempQuat.W = -TempQuat.W;
+		//TempQuat = QTE * TempQuat;
 		//TempQuat = QBA.Inverse()*TempQuat *QBA;
+		//TempQuat = QBA.Inverse()*TempQuat;
+		//TempQuat = QBA*TempQuat *QBA.Inverse();
+		//TempQuat = QBA.Inverse()*(TempQuat *QBA);
 
 		if (!TempQuat.IsNormalized())
 		{
@@ -269,22 +311,45 @@ bool FStepDataToSkeletonBinding::IsHandBound()
 bool FStepDataToSkeletonBinding::UpdateHandFrameData(TArray<FRotator>& outPose)
 {
 	GCWT::transform Gtransform[STEPHANDBONESNUMS];
-	TArray<FRotator> UEMocapData;
+	TArray<FRotator> UEMocapDataGlobal;
+	TArray<FRotator> UEMocapDataLocal;
 
-	//FStepMocapStream::GetLocalGlove()->GetGloveData(Gtransform, std::string(TCHAR_TO_UTF8(*mIpAddress)));
-	//FStepMocapStream::GetLocalGlove()->GetGloveData(Gtransform, "192.168.50.102");
 	FStepMocapStream::GetLocalGlove()->GetGloveData(Gtransform, TCHAR_TO_UTF8(*mIpAddress));
-	ConvertToUE(Gtransform, UEMocapData);
+	ConvertToUE(Gtransform, UEMocapDataGlobal);
 
-	if (UEMocapData.Num() != STEPHANDBONESNUMS)
+	if (UEMocapDataGlobal.Num() != STEPHANDBONESNUMS)
 	{
 		return false;
+	}
+
+	//转化为Local
+	for (int32 i = 0; i < UEMocapDataGlobal.Num(); i++)
+	{
+		FQuat TeampData = FQuat::Identity;
+		if (StepHandBonesID[i] < 100)
+		{
+			TeampData = (UEMocapDataGlobal[StepHandBonesID[i]].Quaternion().Inverse() * UEMocapDataGlobal[i].Quaternion());
+		}
+		
+		else if (StepHandBonesID[i] == 100 && UEMocapData.IsValidIndex(9))
+		{
+			//左手
+			FQuat tmm0 = UEMocapDataGlobal[0].Quaternion();
+			FQuat tmm1 = UEMocapDataGlobal[16].Quaternion();
+			TeampData = (UEMocapData[9].GetRotation().Inverse() * UEMocapDataGlobal[0].Quaternion());
+		}else if (StepHandBonesID[i] == 101 && UEMocapData.IsValidIndex(13))
+		{
+			//右手
+			
+			TeampData = (UEMocapData[13].GetRotation().Inverse() * UEMocapDataGlobal[16].Quaternion());
+		}
+		UEMocapDataLocal.Add(FRotator(TeampData));
 	}
 
 	outPose.Empty(STEPHANDBONESNUMS);
 	for (int32 i = 0; i < STEPHANDBONESNUMS; i++)
 	{
-		outPose.Add(UEMocapData[i]);
+		outPose.Add(UEMocapDataLocal[i]);
 	}
 
 	return true;
@@ -412,8 +477,7 @@ void FStepMocapStream::GetBonesTransform(TArray<FTransform>& BonesData)
 	}
 	else
 	{
-		static transform StepVrMocapData[STEPBONESNUMS];
-		static TArray<FTransform> UEMocapData;
+
 
 		//帧号
 		PreCacheFrame = GFrameCounter;

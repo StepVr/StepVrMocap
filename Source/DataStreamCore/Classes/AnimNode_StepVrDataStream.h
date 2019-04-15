@@ -70,6 +70,8 @@ public:
 private:
 	void InitData();
 
+	FString CheckConert2LocalIP(const FString& IP);
+
 	//绑定骨架
 	FStepDataToSkeletonBinding mSkeletonBinding;
 	

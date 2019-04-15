@@ -1,6 +1,8 @@
 ﻿// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
 #include "AnimNode_StepVrDataStream.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "SocketSubsystem.h"
+#include "IPAddress.h"
 
 
 
@@ -89,7 +91,7 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	// Forward to the incoming pose link.
 	check(Context.AnimInstanceProxy != nullptr);
 
-	MocapServerInfo.ServerIP = ServerName.ToString();
+	MocapServerInfo.ServerIP = CheckConert2LocalIP(ServerName.ToString());
 	MocapServerInfo.ServerPort = PortNumber;
 
 	BindServerStream(Context.AnimInstanceProxy);
@@ -191,7 +193,12 @@ void FAnimNode_StepDataStream::Evaluate_AnyThread(FPoseContext& Output)
 			{
 				auto SkeletonIndex = Output.Pose.GetBoneContainer().MakeCompactPoseIndex(FMeshPoseBoneIndex(ue4Index));
 
-				Output.Pose[SkeletonIndex].SetRotation(HandBonesData[i].Quaternion());
+				if (1/*i == 0*/)
+				{
+					Output.Pose[SkeletonIndex].SetRotation(HandBonesData[i].Quaternion());
+				}
+				//Output.Pose[SkeletonIndex].SetRotation(HandBonesData[i].Quaternion());
+				//Output.Pose[SkeletonIndex].SetRotation(FQuat::Identity); 
 			}
 		}
 	} while (0);
@@ -211,5 +218,22 @@ void FAnimNode_StepDataStream::OnInitializeAnimInstance(const FAnimInstanceProxy
 
 void FAnimNode_StepDataStream::InitData()
 {
+}
+
+FString FAnimNode_StepDataStream::CheckConert2LocalIP(const FString& IP)
+{
+	FString Addr = IP;
+	if (IP.Equals(TEXT("127.0.0.1"),ESearchCase::IgnoreCase) || 
+		IP.Equals(TEXT("localhost"), ESearchCase::IgnoreCase))
+	{
+		bool CanBind = false;
+		TSharedRef<FInternetAddr> LocalIp = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, CanBind);
+		if (LocalIp->IsValid())
+		{
+			Addr = LocalIp->ToString(false);
+		}
+	}
+
+	return Addr;
 }
 
