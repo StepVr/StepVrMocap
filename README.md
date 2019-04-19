@@ -1,5 +1,5 @@
 # StepVrMocap
-StepVr 对接 UE4 全身动捕+手部捕捉插件
+StepVr 对接 Unreal 全身动捕+手部捕捉插件
 
 注意：
 
