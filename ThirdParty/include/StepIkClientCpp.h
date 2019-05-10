@@ -5,6 +5,8 @@
 #define STEPIK_DLL_API __declspec(dllimport)
 #endif // _STEP_DLL_EXPORT
 
+#include <string>
+
 struct V3
 {
 	float x;
@@ -67,6 +69,7 @@ enum RegisterStatus
 	REG_STATUS_SERVER_NOT_START = 0xffffff
 };
 class StepVR_UDP;
+typedef void(*FnBtnCallBack)(int iBtnEvent, int iLR);//（按键类型）iBtnEvent:1,Click;2,Hold;3,Release. （左右）iLR:0,Left;1,Right
 class STEPIK_DLL_API StepIK_Client
 {
 public:
@@ -82,6 +85,17 @@ public:
 	int StopData();
 	StepVR_UDP * m_UDPdev;
 
+	//获得手指各关节姿态的方法 1. GloEnable(true);GloSetDir(i_dir);  2. 在主循环调用GetGloveData
+	void GetGloveData(V4 * data); //32个4元数（前16个为：左手手掌，左手拇指从内向外三个关节，食指三个关节，中指三关节，无名指三关节，小指三关节。后16个为右手的，顺序和左手相同）
+	void GloEnable(bool enable);//开启、关闭手套数据
+	void GloSetDir(int i_dir);//设置航向角
+	void GloCaliFive(int iLR);//五指校准（0左1右）
+	void GloCaliStatic(int iLR);//静态校准
+	void GloCaliDynamic(int iLR);//动态校准
+	void GloSetBtnCallBack(FnBtnCallBack pFn);//按键回调函数，见上方函数声明
+	void GloSetRotType(int iType);//设置输出的姿态（0 Local，1 Global）默认是0
+
+	void GetFaceData(std::string & faceData);
 };
 
 extern "C" {
@@ -89,7 +103,19 @@ extern "C" {
 	STEPIK_DLL_API int startData();
 	STEPIK_DLL_API int TPose();
 	STEPIK_DLL_API void getData(transform * data);
+	
 	STEPIK_DLL_API int GetTPoseStatus();
 	STEPIK_DLL_API int GetRegStatus();
 	STEPIK_DLL_API int Stop();
+	
+	STEPIK_DLL_API void GetGloveData(V4 * data);
+	STEPIK_DLL_API void GloEnable(bool enable);
+	STEPIK_DLL_API void GloSetDir(int i_dir);
+	STEPIK_DLL_API void GloCaliFive(int iLR);
+	STEPIK_DLL_API void GloCaliStatic(int iLR);
+	STEPIK_DLL_API void GloCaliDynamic(int iLR);
+	STEPIK_DLL_API void GloSetBtnCallBack(FnBtnCallBack pFn);
+	STEPIK_DLL_API void GloSetRotType(int iType);
+
+	STEPIK_DLL_API void GetFaceData(std::string & faceData);
 }

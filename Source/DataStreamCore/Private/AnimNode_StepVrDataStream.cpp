@@ -115,7 +115,7 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 		}
 		if (mSkeletonBinding.IsBound())
 		{
-			mSkeletonBinding.UpdateFrameData(BonesData);
+			mSkeletonBinding.UpdateBodyFrameData(BonesData);
 		}
 		if (mSkeletonBinding.IsHandBound())
 		{

@@ -16,9 +16,7 @@ public class StepVrDataStreamCore : ModuleRules
 
     public StepVrDataStreamCore(ReadOnlyTargetRules Target) : base(Target)
     {
-        bEnableUndefinedIdentifierWarnings = false;
-        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-        bFasterWithoutUnity = true;
+        OptimizeCode = CodeOptimization.InShippingBuildsOnly;
 
         PrivateIncludePaths.AddRange( new string[] 
         {
@@ -37,7 +35,6 @@ public class StepVrDataStreamCore : ModuleRules
             "Core",
             "CoreUObject",
             "Engine",
-            "StepVrPlugin",
             "Sockets"
         });
 
@@ -51,11 +48,7 @@ public class StepVrDataStreamCore : ModuleRules
             LibrariesPath = Path.Combine(LibPath, "lib", PlatformString);
 
             PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "StepIKClientDllCPP.lib"));
-            PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "CPPUdpClient.lib"));
-
-            PublicDelayLoadDLLs.Add("CPPUdpClient.dll");
             PublicDelayLoadDLLs.Add("StepIKClientDllCPP.dll");
-            RuntimeDependencies.Add(new RuntimeDependency(Path.Combine(LibrariesPath, "CPPUdpClient.dll")));
             RuntimeDependencies.Add(new RuntimeDependency(Path.Combine(LibrariesPath, "StepIKClientDllCPP.dll")));
         }
 

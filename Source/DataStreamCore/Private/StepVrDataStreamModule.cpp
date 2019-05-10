@@ -3,16 +3,9 @@
 #include "StepVrDataStreamModule.h"
 #include "Engine.h"
 
-static void* LocalDllHandle = nullptr;
 static void* CPPUdpClientDllHandle = nullptr;
 void FreeHandle()
 {
-	if (LocalDllHandle != nullptr)
-	{
-		FPlatformProcess::FreeDllHandle(LocalDllHandle);
-		LocalDllHandle = nullptr;
-	}
-
 	if (CPPUdpClientDllHandle != nullptr)
 	{
 		FPlatformProcess::FreeDllHandle(CPPUdpClientDllHandle);
@@ -22,44 +15,27 @@ void FreeHandle()
 
 void FStepDataStreamModule::StartupModule()
 {
-	//动捕
+	TArray<FString> DllPaths;
+	FString Platform = (PLATFORM_WINDOWS&&PLATFORM_64BITS) ? TEXT("x64") : TEXT("x32");
+	DllPaths.Add(FPaths::ProjectPluginsDir() + TEXT("StepVrMocap/ThirdParty/lib/") + Platform);
+	DllPaths.Add(FPaths::EnginePluginsDir() + TEXT("StepVrMocap/ThirdParty/lib/") + Platform);
+	DllPaths.Add(FPaths::EnginePluginsDir() + TEXT("Runtime/StepVrMocap/ThirdParty/lib/") + Platform);
+
+	for (int32 i = 0; i < DllPaths.Num(); i++)
 	{
-		if (LocalDllHandle)
+		FPlatformProcess::PushDllDirectory(*DllPaths[i]);
+		CPPUdpClientDllHandle = FPlatformProcess::GetDllHandle(*(DllPaths[i] + "/StepIKClientDllCPP.dll"));
+		FPlatformProcess::PopDllDirectory(*DllPaths[i]);
+
+		if (CPPUdpClientDllHandle != nullptr)
 		{
-			FreeHandle();
-		}
-
-		FString Platform = (PLATFORM_WINDOWS&&PLATFORM_64BITS) ? TEXT("x64") : TEXT("x32");
-		FString DllPath = FPaths::ProjectPluginsDir() + TEXT("StepVrMocap/ThirdParty/lib/") + Platform;
-
-		FPlatformProcess::PushDllDirectory(*DllPath);
-		LocalDllHandle = FPlatformProcess::GetDllHandle(*(DllPath + TEXT("/StepIKClientDllCPP.dll")));
-		FPlatformProcess::PopDllDirectory(*DllPath);
-
-		if (LocalDllHandle == nullptr)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Load StepMocapDll Faild"));
+			break;
 		}
 	}
 
-	//新捕捉
+	if (CPPUdpClientDllHandle == nullptr)
 	{
-		if (CPPUdpClientDllHandle)
-		{
-			FreeHandle();
-		}
-
-		FString Platform = (PLATFORM_WINDOWS&&PLATFORM_64BITS) ? TEXT("x64") : TEXT("x32");
-		FString DllPath = FPaths::ProjectPluginsDir() + TEXT("StepVrMocap/ThirdParty/lib/") + Platform;
-
-		FPlatformProcess::PushDllDirectory(*DllPath);
-		CPPUdpClientDllHandle = FPlatformProcess::GetDllHandle(*(DllPath + TEXT("/CPPUdpClient.dll")));
-		FPlatformProcess::PopDllDirectory(*DllPath);
-
-		if (LocalDllHandle == nullptr)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Load CPPUdpClientDLL Faild"));
-		}
+		UE_LOG(LogTemp, Warning, TEXT("Load StepMocapDll Faild"));
 	}
 }
 

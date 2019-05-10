@@ -1,9 +1,8 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "StepVrReplicatedComponent.h"
+
 #include "GameFramework/Pawn.h"
-#include "StepVrGlobal.h"
-#include "StepVrServerModule.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -35,25 +34,25 @@ void UStepReplicatedComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	APawn* Pawn = Cast<APawn>(GetOwner());
-	if (Pawn == nullptr)
-	{
-		return;
-	}
+	//APawn* Pawn = Cast<APawn>(GetOwner());
+	//if (Pawn == nullptr)
+	//{
+	//	return;
+	//}
 
-	bIsLocalControll = Pawn->IsLocallyControlled();
-	if (bIsLocalControll)
-	{
-		if (STEPVR_SERVER_IsValid)
-		{
-			uint32 Addr = STEPVR_SERVER->GetLocalAddress();
-			SetPlayerAddrOnServer(Addr);
-		}
-		else
-		{
-			SetPlayerAddrOnServer(1);
-		}
-	}
+	//bIsLocalControll = Pawn->IsLocallyControlled();
+	//if (bIsLocalControll)
+	//{
+	//	if (STEPVR_SERVER_IsValid)
+	//	{
+	//		uint32 Addr = STEPVR_SERVER->GetLocalAddress();
+	//		SetPlayerAddrOnServer(Addr);
+	//	}
+	//	else
+	//	{
+	//		SetPlayerAddrOnServer(1);
+	//	}
+	//}
 	
 }
 void UStepReplicatedComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

@@ -2,15 +2,15 @@
   "FileVersion": 3,
   "Version": 1,
   "VersionName": "1.1",
-  "FriendlyName": "StepVrMocap",
+  "FriendlyName": "StepMocap",
   "Description": "Step Streamer Node. This plug-in allows the user to stream in the Step skeleton into Unreal Engine 4",
-  "Category": "StepVr",
-  "CreatedBy": "StepVr",
+  "Category": "Step",
+  "CreatedBy": "JCW",
   "CreatedByURL": "",
   "DocsURL": "",
   "MarketplaceURL": "",
   "SupportURL": "",
-  "CanContainContent": true,
+  "CanContainContent": false,
   "IsBetaVersion": false,
   "Installed": true,
   "Modules": [
@@ -29,12 +29,6 @@
       "WhitelistPlatforms": [
         "Win64"
       ]
-    }
-  ],
-  "Plugins": [
-    {
-      "Name": "StepVrPlugin",
-      "Enabled": true
     }
   ]
 }

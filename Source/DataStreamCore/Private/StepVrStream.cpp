@@ -2,12 +2,12 @@
 
 #include "StepVrStream.h"
 #include "StepIkClientCpp.h"
-#include "LocalFace.h"
+
 #include "Animation/AnimInstanceProxy.h"
+#include "Misc/CoreDelegates.h"
 
 
 
-#pragma optimize("",off)
 static transform StepVrMocapData[STEPBONESNUMS];
 static TArray<FTransform> UEMocapData;
 
@@ -20,7 +20,7 @@ namespace StepMocapServers
 	static TMap<uint32, TSharedPtr<FStepMocapStream>> AllStreams;
 
 	TWeakPtr<FStepMocapStream> GetStream(const FMocapServerInfo& InServerInfo);
-	void ReturnStream(const FMocapServerInfo& InServerInfo);
+	void ReturnStream(TWeakPtr<FStepMocapStream> StepMocapStream);
 
 	uint32 GetServerID(const FMocapServerInfo& InServerInfo);
 }
@@ -31,6 +31,8 @@ uint32 StepMocapServers::GetServerID(const FMocapServerInfo& InServerInfo)
 	uint32 ServerID = GetTypeHash(ServerString);
 	return ServerID;
 }
+
+
 TWeakPtr<FStepMocapStream> StepMocapServers::GetStream(const FMocapServerInfo& InServerInfo)
 {
 	uint32 ServerID = StepMocapServers::GetServerID(InServerInfo);
@@ -60,6 +62,23 @@ TWeakPtr<FStepMocapStream> StepMocapServers::GetStream(const FMocapServerInfo& I
 	}
 
 	return TargetStream;
+}
+
+void StepMocapServers::ReturnStream(TWeakPtr<FStepMocapStream> StepMocapStream)
+{
+	if (StepMocapStream.IsValid())
+	{
+		uint32 ServerID = StepMocapServers::GetServerID(StepMocapStream.Pin()->GetServerInfo());
+		auto Temp = AllStreams.Find(ServerID);
+
+		bool NeedRelease = (Temp != nullptr) && (*Temp)->ReleaseReference();
+		if (NeedRelease)
+		{
+			AllStreams.Remove(ServerID);
+		}
+	}
+
+	StepMocapStream.Reset();
 }
 
 
@@ -102,61 +121,22 @@ void ConvertToUE(transform* InData, TArray<FTransform>& OutData)
 		TempData.SetRotation(TempQuat);
 	}
 }
-void ConvertToUE(GCWT::transform* InData, TArray<FRotator>& OutData)
+void ConvertToUE(V4* InData, TArray<FRotator>& OutData)
 {
-	GCWT::transform tr = InData[2];
 	OutData.Init(FRotator::ZeroRotator, STEPHANDBONESNUMS);
 
-	FVector TempVec;
-	FQuat TempQuat,tmQ;
-
+	FQuat TempQuat;
 	static const FQuat QBA = FQuat::FQuat(FVector(0, 0, 1), PI);
 	static const FQuat QTE = FQuat::FQuat(FVector(0, 0, 1), -PI / 2.0).Inverse()*FQuat::FQuat(FVector(1, 0, 0), -PI / 2.0).Inverse();
 	for (int32 i = 0; i < STEPHANDBONESNUMS; i++)
 	{
-		FRotator& TempData = OutData[i];
-
-		TempQuat.X = InData[i].Rotation.x;
-		TempQuat.Y = InData[i].Rotation.y;
-		TempQuat.Z = InData[i].Rotation.z;
-		TempQuat.W = InData[i].Rotation.w;
+		TempQuat.X = InData[i].x;
+		TempQuat.Y = InData[i].y;
+		TempQuat.Z = InData[i].z;
+		TempQuat.W = InData[i].w;
 		
-		/*TempQuat.X = -InData[i].Rotation.z;
-		TempQuat.Y = InData[i].Rotation.y;
-		TempQuat.Z = InData[i].Rotation.x;
-		TempQuat.W = InData[i].Rotation.w;*/
-		
-		/*TempQuat = TempQuat * QBA;
-		TempQuat = QTE * TempQuat;
-
-		tmQ.X = TempQuat.X;
-		tmQ.Y = -TempQuat.Z;
-		tmQ.Z = TempQuat.Y;
-		tmQ.W = TempQuat.W;
-
-		TempQuat = tmQ;*/
-		//TempQuat = TempQuat*FQuat::FQuat(FVector(0, 1, 0), PI/2);
-		//TempQuat = TempQuat * QBA;
-		//TempQuat = QTE * TempQuat;
 		TempQuat = TempQuat*QBA;
 		TempQuat = QTE * TempQuat;
-
-		//if (i == 0)
-		//{
-		//	TempQuat = QBA.Inverse()*TempQuat *QBA;
-		//}
-
-		//TempQuat = TempQuat * QBA;
-		
-		//TempQuat.X = -TempQuat.X;
-		//TempQuat.Y = -TempQuat.Y;
-        //TempQuat.Z = -TempQuat.Z;
-		//TempQuat.W = -TempQuat.W;
-		//TempQuat = QTE * TempQuat;
-		//TempQuat = QBA.Inverse()*TempQuat *QBA;
-		//TempQuat = QBA.Inverse()*TempQuat;
-		//TempQuat = QBA*TempQuat *QBA.Inverse();
-		//TempQuat = QBA.Inverse()*(TempQuat *QBA);
 
 		if (!TempQuat.IsNormalized())
 		{
@@ -165,20 +145,11 @@ void ConvertToUE(GCWT::transform* InData, TArray<FRotator>& OutData)
 			break;
 		}
 
-		TempData = TempQuat.Rotator();
+		OutData[i] = TempQuat.Rotator();
 	}
 }
-void StepMocapServers::ReturnStream(const FMocapServerInfo& InServerInfo)
-{
-	uint32 ServerID = StepMocapServers::GetServerID(InServerInfo);
-	auto Temp = AllStreams.Find(ServerID);
 
-	bool NeedRelease = (Temp != nullptr) && (*Temp)->ReleaseReference();
-	if (NeedRelease)
-	{
-		AllStreams.Remove(ServerID);
-	}
-}
+
 
 // Default constructor.
 FStepDataToSkeletonBinding::FStepDataToSkeletonBinding()
@@ -189,11 +160,7 @@ FStepDataToSkeletonBinding::FStepDataToSkeletonBinding()
 
 FStepDataToSkeletonBinding::~FStepDataToSkeletonBinding()
 {
-	if (StepMpcapStream.IsValid())
-	{
-		StepMocapServers::ReturnStream(StepMpcapStream.Pin()->GetServerInfo());
-		StepMpcapStream.Reset();
-	}
+	StepMocapServers::ReturnStream(StepMpcapStream);
 }
 
 
@@ -214,8 +181,7 @@ bool FStepDataToSkeletonBinding::ConnectToServer(const FMocapServerInfo& InServe
 	}
 
 	//释放并创建新的Steam
-	StepMocapServers::ReturnStream(InServerInfo);
-	StepMpcapStream.Reset();
+	StepMocapServers::ReturnStream(StepMpcapStream);
 	StepMpcapStream = StepMocapServers::GetStream(InServerInfo);
 
 	return StepMpcapStream.IsValid();
@@ -308,53 +274,6 @@ bool FStepDataToSkeletonBinding::IsHandBound()
 	return mHandBound;
 }
 
-bool FStepDataToSkeletonBinding::UpdateHandFrameData(TArray<FRotator>& outPose)
-{
-	GCWT::transform Gtransform[STEPHANDBONESNUMS];
-	TArray<FRotator> UEMocapDataGlobal;
-	TArray<FRotator> UEMocapDataLocal;
-
-	FStepMocapStream::GetLocalGlove()->GetGloveData(Gtransform, TCHAR_TO_UTF8(*mIpAddress));
-	ConvertToUE(Gtransform, UEMocapDataGlobal);
-
-	if (UEMocapDataGlobal.Num() != STEPHANDBONESNUMS)
-	{
-		return false;
-	}
-
-	//转化为Local
-	for (int32 i = 0; i < UEMocapDataGlobal.Num(); i++)
-	{
-		FQuat TeampData = FQuat::Identity;
-		if (StepHandBonesID[i] < 100)
-		{
-			TeampData = (UEMocapDataGlobal[StepHandBonesID[i]].Quaternion().Inverse() * UEMocapDataGlobal[i].Quaternion());
-		}
-		
-		else if (StepHandBonesID[i] == 100 && UEMocapData.IsValidIndex(9))
-		{
-			//左手
-			FQuat tmm0 = UEMocapDataGlobal[0].Quaternion();
-			FQuat tmm1 = UEMocapDataGlobal[16].Quaternion();
-			TeampData = (UEMocapData[9].GetRotation().Inverse() * UEMocapDataGlobal[0].Quaternion());
-		}else if (StepHandBonesID[i] == 101 && UEMocapData.IsValidIndex(13))
-		{
-			//右手
-			
-			TeampData = (UEMocapData[13].GetRotation().Inverse() * UEMocapDataGlobal[16].Quaternion());
-		}
-		UEMocapDataLocal.Add(FRotator(TeampData));
-	}
-
-	outPose.Empty(STEPHANDBONESNUMS);
-	for (int32 i = 0; i < STEPHANDBONESNUMS; i++)
-	{
-		outPose.Add(UEMocapDataLocal[i]);
-	}
-
-	return true;
-}
-
 float FStepDataToSkeletonBinding::GetFigureScale()
 {
 	return 1.f;
@@ -380,22 +299,31 @@ bool FStepDataToSkeletonBinding::IsBound()
 	return mBound;
 }
 
-bool FStepDataToSkeletonBinding::UpdateFrameData(TArray<FTransform>& outPose)
+bool FStepDataToSkeletonBinding::UpdateBodyFrameData(TArray<FTransform>& outPose)
 {
 	if (!StepMpcapStream.IsValid())
 	{
 		return false;
 	}
 
-	StepMpcapStream.Pin()->GetBonesTransform(outPose);
+	StepMpcapStream.Pin()->GetBonesTransform_Body(outPose);
 
 	return true;
 }
+bool FStepDataToSkeletonBinding::UpdateHandFrameData(TArray<FRotator>& outPose)
+{
+	if (!StepMpcapStream.IsValid())
+	{
+		return false;
+	}
 
+	StepMpcapStream.Pin()->GetBonesTransform_Hand(outPose);
+
+	return true;
+}
 FStepMocapStream::FStepMocapStream()
 {
-	ReferenceCount = 0;
-	CacheFrameData.SetNumUninitialized(STEPBONESNUMS);
+
 }
 
 FStepMocapStream::~FStepMocapStream()
@@ -404,26 +332,9 @@ FStepMocapStream::~FStepMocapStream()
 	if (StepVrClient.IsValid())
 	{
 		StepVrClient->StopData();
+		StepVrClient->GloEnable(false);
+		StepVrClient.Reset();
 	}
-}
-
-GCWT::LocalFace* GLocalFace = nullptr;
-GCWT::LocalFace* FStepMocapStream::GetLocalFace()
-{
-	if (GLocalFace == nullptr)
-	{
-		GLocalFace = new GCWT::LocalFace();
-	}
-	return GLocalFace;
-}
-GCWT::LocalGlove* GLocalGlove = nullptr;
-GCWT::LocalGlove* FStepMocapStream::GetLocalGlove()
-{
-	if (GLocalGlove == nullptr)
-	{
-		GLocalGlove = new GCWT::LocalGlove();
-	}
-	return GLocalGlove;
 }
 
 bool FStepMocapStream::ReleaseReference()
@@ -454,9 +365,13 @@ void FStepMocapStream::SetServerInfo(const FMocapServerInfo& ServerInfo)
 	//初始化服务
 	UsedServerInfo = ServerInfo;
 
-	StepVrClient = MakeShareable(new StepIK_Client());
+	//初始化数据池
+	ReferenceCount = 0;
 
 	ConnectToServer();
+
+	//注册更新
+	FCoreDelegates::OnBeginFrame.AddRaw(this, &FStepMocapStream::EngineBegineFrame);
 }
 
 const FMocapServerInfo& FStepMocapStream::GetServerInfo()
@@ -464,29 +379,75 @@ const FMocapServerInfo& FStepMocapStream::GetServerInfo()
 	return UsedServerInfo;
 }
 
-void FStepMocapStream::GetBonesTransform(TArray<FTransform>& BonesData)
+void FStepMocapStream::GetBonesTransform_Body(TArray<FTransform>& BonesData)
 {
-	if (STEPBONESNUMS != StepBonesID.Num())
+	BonesData.Empty();
+
+	if (CacheBodyFrameData.Num() > 0)
 	{
-		return;
+		BonesData = CacheBodyFrameData;
 	}
+}
 
-	if (GFrameCounter == PreCacheFrame)
+void FStepMocapStream::GetBonesTransform_Hand(TArray<FRotator>& BonesData)
+{
+	BonesData.Empty();
+
+	if (CacheHandFrameData.Num() > 0)
 	{
-		BonesData.Empty(CacheFrameData.Num());
+		BonesData = CacheHandFrameData;
 	}
-	else
+}
+
+void FStepMocapStream::ConnectToServer()
+{
+	//创建连接
+	StepVrClient = MakeShareable(new StepIK_Client());
+
+	int32 Flag = StepVrClient->Connect(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP), UsedServerInfo.ServerPort);
+
+	//连接动捕
+	do 
 	{
+		if (StepVrClient->GetServerStatus() > 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("StepVrMocap Connect Error : %s"), *UsedServerInfo.ServerIP);
+			break;
+		}
+
+		StepVrClient->startData();
+		bBodyConnected = true;
+		UE_LOG(LogTemp, Warning, TEXT("StepVrMocap Connect: %s Success"), *UsedServerInfo.ServerIP);
+	} while (0);
+
+	//连接手套
+	do 
+	{
+		StepVrClient->GloEnable(true);
+		StepVrClient->GloSetDir(135);
+		StepVrClient->GloSetRotType(1);
+		bHandConnected = true;
+	} while (0);
 
 
-		//帧号
-		PreCacheFrame = GFrameCounter;
+	//连接面捕
+	do 
+	{
+		bFaceConnected = false;
+	} while (0);
+}
+
+void FStepMocapStream::EngineBegineFrame()
+{
+	//动捕数据
+	if (bBodyConnected)
+	{
 		StepVrClient->getData((transform*)StepVrMocapData);
 		ConvertToUE(StepVrMocapData, UEMocapData);
 
-		CacheFrameData.Empty();
+		CacheBodyFrameData.Empty();
 		FTransform TeampData;
-		for (int32 i = 0 ; i < UEMocapData.Num(); i++)
+		for (int32 i = 0; i < UEMocapData.Num(); i++)
 		{
 			if (i >= 1)
 			{
@@ -498,48 +459,60 @@ void FStepMocapStream::GetBonesTransform(TArray<FTransform>& BonesData)
 				TeampData = UEMocapData[i];
 			}
 
-			CacheFrameData.Add(TeampData);
+			CacheBodyFrameData.Add(TeampData);
 		}
 	}
 
-	BonesData = CacheFrameData;
-}
-
-bool FStepMocapStream::ConnectToServer()
-{
-	if (!StepVrClient.IsValid())
-	{
-		return false;
-	}
-
-	if (bIsConnected)
-	{
-		return bIsConnected;
-	}
-
+	//手套数据
 	do 
 	{
-		int32 Flag = StepVrClient->Connect(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP), UsedServerInfo.ServerPort);
-
-		if (StepVrClient->GetServerStatus() > 0)
+		if (!bHandConnected)
 		{
 			break;
 		}
 
-		bIsConnected = true;
+		TArray<FRotator> UEMocapDataGlobal;
+		V4 GRotators[STEPHANDBONESNUMS];
+		CacheHandFrameData.Empty();
+
+		StepVrClient->GetGloveData(GRotators);
+		ConvertToUE(GRotators, UEMocapDataGlobal);
+
+		if (UEMocapDataGlobal.Num() != STEPHANDBONESNUMS)
+		{
+			break;
+		}
+
+		//转化为Local
+		FQuat TeampData = FQuat::Identity;
+		for (int32 i = 0; i < UEMocapDataGlobal.Num(); i++)
+		{
+			TeampData = FQuat::Identity;
+			if (StepHandBonesID[i] < 100)
+			{
+				TeampData = (UEMocapDataGlobal[StepHandBonesID[i]].Quaternion().Inverse() * UEMocapDataGlobal[i].Quaternion());
+			}
+
+			else if (StepHandBonesID[i] == 100 && UEMocapData.IsValidIndex(9))
+			{
+				//左手
+				FQuat tmm0 = UEMocapDataGlobal[0].Quaternion();
+				FQuat tmm1 = UEMocapDataGlobal[16].Quaternion();
+				TeampData = (UEMocapData[9].GetRotation().Inverse() * UEMocapDataGlobal[0].Quaternion());
+			}
+			else if (StepHandBonesID[i] == 101 && UEMocapData.IsValidIndex(13))
+			{
+				//右手
+				TeampData = (UEMocapData[13].GetRotation().Inverse() * UEMocapDataGlobal[16].Quaternion());
+			}
+			CacheHandFrameData.Add(FRotator(TeampData));
+		}
 	} while (0);
 
 
-	if (bIsConnected)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("StepVrMocap Connect: %s Success"), *UsedServerInfo.ServerIP);
-		StepVrClient->startData();
-	}
-	else
-	{
-		//错误
-		UE_LOG(LogTemp, Warning, TEXT("StepVrMocap Connect Error : %s"), *UsedServerInfo.ServerIP);
-	}
 
-	return bIsConnected;
+	if (bFaceConnected)
+	{
+
+	}
 }

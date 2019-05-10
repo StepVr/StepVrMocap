@@ -4,7 +4,6 @@
 
 #include "StepMocapDefine.h"
 #include "Animation/AnimNodeBase.h"
-#include "LocalFace.h"
 
 class StepIK_Client;
 struct FStepVRPNChar;
@@ -16,9 +15,6 @@ public:
 	FStepMocapStream();
 	~FStepMocapStream();
 
-	static GCWT::LocalFace* GetLocalFace();
-	static GCWT::LocalGlove* GetLocalGlove();
-
 	//True表示可以释放
 	bool ReleaseReference();
 
@@ -28,11 +24,18 @@ public:
 	void SetServerInfo(const FMocapServerInfo& ServerInfo);
 	const FMocapServerInfo& GetServerInfo();
 
-	void GetBonesTransform(TArray<FTransform>& BonesData);
+	void GetBonesTransform_Body(TArray<FTransform>& BonesData);
+	void GetBonesTransform_Hand(TArray<FRotator>& BonesData);
 
-	bool IsConnected() { return bIsConnected; }
 
-	bool ConnectToServer();
+	bool IsConnected() { return bBodyConnected; }
+
+	void ConnectToServer();
+
+protected:
+	void EngineBegineFrame();
+
+
 private:
 	//当前链接属性
 	FMocapServerInfo UsedServerInfo;
@@ -41,11 +44,21 @@ private:
 
 	int32 ReferenceCount = 0;
 
-	//存储数据
-	TArray<FTransform> CacheFrameData;
+	//动捕存储数据
+	TArray<FTransform> CacheBodyFrameData;
+
+	//手套数据
+	TArray<FRotator> CacheHandFrameData;
+
+	//面捕数据
+
+
 	uint64	PreCacheFrame;
 
-	bool bIsConnected = false;
+	bool bClientConnected = false;
+	bool bBodyConnected = false;
+	bool bHandConnected = false;
+	bool bFaceConnected = false;
 };
 
 class STEPVRDATASTREAMCORE_API FStepDataToSkeletonBinding
@@ -64,7 +77,7 @@ public:
 	 */
 	bool BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, TMap<FString, FBoneReference>& BoneReferences);
 	bool IsBound();
-	bool UpdateFrameData(TArray<FTransform>& outPose);
+	bool UpdateBodyFrameData(TArray<FTransform>& outPose);
 	int32 GetUE4BoneIndex(int32 SegmentIndex) const;
 	float GetFigureScale();
 
