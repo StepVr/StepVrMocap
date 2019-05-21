@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "StepVrReplicatedComponent.generated.h"
 
+#define REPLICATE_NONE TEXT("None")
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class UStepReplicatedComponent : public UActorComponent
@@ -18,10 +19,13 @@ public:
 
 	//本地IpAddress
 	UFUNCTION(Server, Reliable, WithValidation)
-	void SetPlayerAddrOnServer(const uint32 InAddr);
+	void SetPlayerAddrOnServer(const FString& InAddr);
 
-	UPROPERTY(Replicated)
-	uint32  PlayerAddr = 0;
+	UPROPERTY(BlueprintReadOnly, transient, Replicated)
+	FString PlayerAddr;
+
+	UFUNCTION(BlueprintCallable)
+	void SetPlayerAddr(const FString& InAddr);
 
 protected:
 	// Called when the game starts

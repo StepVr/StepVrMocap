@@ -75,7 +75,7 @@ class STEPIK_DLL_API StepIK_Client
 public:
 	StepIK_Client();
 	~StepIK_Client();
-	int Connect(char * szServerIP, int serverPort);
+	int Connect(char * szServerIP, int serverPort);//port: 9516
 	int startData();
 	int TPose();
 	void getData(transform * data);
@@ -95,7 +95,11 @@ public:
 	void GloSetBtnCallBack(FnBtnCallBack pFn);//按键回调函数，见上方函数声明
 	void GloSetRotType(int iType);//设置输出的姿态（0 Local，1 Global）默认是0
 
-	void GetFaceData(std::string & faceData);
+	void GetFaceData(float* fFaceData, int & iLen);
+
+	bool HasBodyData();
+	bool HasGloveData();
+	bool HasFaceData();
 };
 
 extern "C" {
@@ -117,5 +121,10 @@ extern "C" {
 	STEPIK_DLL_API void GloSetBtnCallBack(FnBtnCallBack pFn);
 	STEPIK_DLL_API void GloSetRotType(int iType);
 
-	STEPIK_DLL_API void GetFaceData(std::string & faceData);
+	STEPIK_DLL_API void GetFaceData(float* fFaceData, int & iLen);
+
+	STEPIK_DLL_API bool HasBodyData();
+	STEPIK_DLL_API bool HasGloveData();
+	STEPIK_DLL_API bool HasFaceData();
+	
 }

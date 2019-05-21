@@ -3,8 +3,11 @@
 #include "StepVrStream.h"
 #include "StepIkClientCpp.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/MorphTarget.h"
 #include "Misc/CoreDelegates.h"
+
 
 
 
@@ -19,8 +22,8 @@ namespace StepMocapServers
 	static bool IsConnected = false;
 	static TMap<uint32, TSharedPtr<FStepMocapStream>> AllStreams;
 
-	TWeakPtr<FStepMocapStream> GetStream(const FMocapServerInfo& InServerInfo);
-	void ReturnStream(TWeakPtr<FStepMocapStream> StepMocapStream);
+	TSharedRef<FStepMocapStream> GetStream(const FMocapServerInfo& InServerInfo);
+	void ReturnStream(TSharedRef<FStepMocapStream> StepMocapStream);
 
 	uint32 GetServerID(const FMocapServerInfo& InServerInfo);
 }
@@ -33,15 +36,18 @@ uint32 StepMocapServers::GetServerID(const FMocapServerInfo& InServerInfo)
 }
 
 
-TWeakPtr<FStepMocapStream> StepMocapServers::GetStream(const FMocapServerInfo& InServerInfo)
+TSharedRef<FStepMocapStream> StepMocapServers::GetStream(const FMocapServerInfo& InServerInfo)
 {
 	uint32 ServerID = StepMocapServers::GetServerID(InServerInfo);
 
 	TWeakPtr<FStepMocapStream> TargetStream;
 
 	auto Temp = AllStreams.Find(ServerID);
-	if (Temp == nullptr)
+	if (Temp == nullptr || !(*Temp).IsValid())
 	{
+		//移除原有的
+		AllStreams.Remove(ServerID);
+
 		TSharedPtr<FStepMocapStream> NewStream = MakeShareable(new FStepMocapStream());
 		NewStream->SetServerInfo(InServerInfo);
 		TargetStream = NewStream;
@@ -58,27 +64,23 @@ TWeakPtr<FStepMocapStream> StepMocapServers::GetStream(const FMocapServerInfo& I
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("StepMocapGetStreamFaild : ServerIP:%s , ServerPort:%d"), *InServerInfo.ServerIP, InServerInfo.ServerPort);
+		FString Message = FString::Printf(TEXT("StepMocapGetStreamFaild : ServerIP:%s , ServerPort:%d"), *InServerInfo.ServerIP, InServerInfo.ServerPort);
+		ShowMessage(Message);
 	}
 
-	return TargetStream;
+	return TargetStream.Pin().ToSharedRef();
 }
 
-void StepMocapServers::ReturnStream(TWeakPtr<FStepMocapStream> StepMocapStream)
+void StepMocapServers::ReturnStream(TSharedRef<FStepMocapStream> StepMocapStream)
 {
-	if (StepMocapStream.IsValid())
+	uint32 ServerID = StepMocapServers::GetServerID(StepMocapStream->GetServerInfo());
+	auto Temp = AllStreams.Find(ServerID);
+
+	bool NeedRelease = (Temp != nullptr) && (*Temp)->ReleaseReference();
+	if (NeedRelease)
 	{
-		uint32 ServerID = StepMocapServers::GetServerID(StepMocapStream.Pin()->GetServerInfo());
-		auto Temp = AllStreams.Find(ServerID);
-
-		bool NeedRelease = (Temp != nullptr) && (*Temp)->ReleaseReference();
-		if (NeedRelease)
-		{
-			AllStreams.Remove(ServerID);
-		}
+		AllStreams.Remove(ServerID);
 	}
-
-	StepMocapStream.Reset();
 }
 
 
@@ -112,7 +114,8 @@ void ConvertToUE(transform* InData, TArray<FTransform>& OutData)
 
 		if (!TempQuat.IsNormalized())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("%f--%f--%f--%f"), TempQuat.X, TempQuat.Y, TempQuat.Z, TempQuat.W);
+			FString Message = FString::Printf(TEXT("%f--%f--%f--%f"), TempQuat.X, TempQuat.Y, TempQuat.Z, TempQuat.W);
+			ShowMessage(Message);
 			OutData.Empty();
 			break;
 		}
@@ -140,7 +143,8 @@ void ConvertToUE(V4* InData, TArray<FRotator>& OutData)
 
 		if (!TempQuat.IsNormalized())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("%f--%f--%f--%f"), TempQuat.X, TempQuat.Y, TempQuat.Z, TempQuat.W);
+			FString Message = FString::Printf(TEXT("%f--%f--%f--%f"), TempQuat.X, TempQuat.Y, TempQuat.Z, TempQuat.W);
+			ShowMessage(Message);
 			OutData.Empty();
 			break;
 		}
@@ -160,7 +164,11 @@ FStepDataToSkeletonBinding::FStepDataToSkeletonBinding()
 
 FStepDataToSkeletonBinding::~FStepDataToSkeletonBinding()
 {
-	StepMocapServers::ReturnStream(StepMpcapStream);
+	if (StepMpcapStream.IsValid())
+	{
+		StepMocapServers::ReturnStream(StepMpcapStream.ToSharedRef());
+	}
+	
 }
 
 
@@ -175,13 +183,13 @@ bool FStepDataToSkeletonBinding::ConnectToServer(const FMocapServerInfo& InServe
 	}
 
 	//与当前的是否相同
-	if (StepMpcapStream.Pin()->GetServerInfo().IsEqual(InServerInfo))
+	if (StepMpcapStream->GetServerInfo().IsEqual(InServerInfo))
 	{
 		return true;
 	}
 
 	//释放并创建新的Steam
-	StepMocapServers::ReturnStream(StepMpcapStream);
+	StepMocapServers::ReturnStream(StepMpcapStream.ToSharedRef());
 	StepMpcapStream = StepMocapServers::GetStream(InServerInfo);
 
 	return StepMpcapStream.IsValid();
@@ -189,7 +197,7 @@ bool FStepDataToSkeletonBinding::ConnectToServer(const FMocapServerInfo& InServe
 
 bool FStepDataToSkeletonBinding::IsConnected()
 {
-	return StepMpcapStream.IsValid() && StepMpcapStream.Pin()->IsConnected();
+	return StepMpcapStream.IsValid() && StepMpcapStream->IsConnected();
 }
 
 // Bind the given Strean to the given skeleton and store the result.
@@ -222,7 +230,8 @@ bool FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 		}
 		else
 		{
-			UE_LOG(LogTemp,Error,TEXT("StepVrMocap Error Bind %s"),*BoneName);
+			FString Message = FString::Printf(TEXT("StepVrMocap Error Bind %s"), *BoneName);
+			ShowMessage(Message);
 		}
 	}
 
@@ -260,7 +269,8 @@ bool FStepDataToSkeletonBinding::BindToHandSkeleton(FAnimInstanceProxy* AnimInst
 		}
 		else
 		{
-			UE_LOG(LogTemp, Error, TEXT("StepVrMocap Error Bind %s"), *BoneName);
+			FString Message = FString::Printf(TEXT("StepVrMocap Error Bind %s"), *BoneName);
+			ShowMessage(Message);
 		}
 	}
 
@@ -294,7 +304,51 @@ int32 FStepDataToSkeletonBinding::GetUE4HandBoneIndex(int32 SegmentIndex) const
 	return INDEX_NONE;
 }
 
-bool FStepDataToSkeletonBinding::IsBound()
+
+bool FStepDataToSkeletonBinding::BindToFaceMorghTarget(FAnimInstanceProxy* AnimInstanceProxy, TArray<FString>& MorghTarget)
+{
+	mFaceBound = false;
+	MorghTarget.Empty();
+
+	USkeletalMeshComponent* Cpmponent = AnimInstanceProxy->GetSkelMeshComponent();
+	if (Cpmponent == nullptr)
+	{
+		return mFaceBound;
+	}
+
+	if (Cpmponent->SkeletalMesh == nullptr)
+	{
+		return mFaceBound;
+	}
+
+	for (int32 i = 0; i < Cpmponent->SkeletalMesh->MorphTargets.Num(); i++)
+	{
+		FString MorghName = Cpmponent->SkeletalMesh->MorphTargets[i]->GetName();
+		MorghTarget.Add(MorghName);
+	}
+
+	mFaceBound = MorghTarget.IsValidIndex(0);
+	return mFaceBound;
+}
+
+bool FStepDataToSkeletonBinding::UpdateFaceFrameData(TMap<FString, float>& outPose)
+{
+	if (!StepMpcapStream.IsValid())
+	{
+		return false;
+	}
+
+	StepMpcapStream->GetBonesTransform_Face(outPose);
+
+	return true;
+}
+
+bool FStepDataToSkeletonBinding::IsFaceBound()
+{
+	return mFaceBound;
+}
+
+bool FStepDataToSkeletonBinding::IsBodyBound()
 {
 	return mBound;
 }
@@ -306,7 +360,7 @@ bool FStepDataToSkeletonBinding::UpdateBodyFrameData(TArray<FTransform>& outPose
 		return false;
 	}
 
-	StepMpcapStream.Pin()->GetBonesTransform_Body(outPose);
+	StepMpcapStream->GetBonesTransform_Body(outPose);
 
 	return true;
 }
@@ -317,7 +371,7 @@ bool FStepDataToSkeletonBinding::UpdateHandFrameData(TArray<FRotator>& outPose)
 		return false;
 	}
 
-	StepMpcapStream.Pin()->GetBonesTransform_Hand(outPose);
+	StepMpcapStream->GetBonesTransform_Hand(outPose);
 
 	return true;
 }
@@ -328,26 +382,18 @@ FStepMocapStream::FStepMocapStream()
 
 FStepMocapStream::~FStepMocapStream()
 {
-	UE_LOG(LogTemp, Log, TEXT("StepVrMocap StepMocapStream Delete"));
-	if (StepVrClient.IsValid())
-	{
-		StepVrClient->StopData();
-		StepVrClient->GloEnable(false);
-		StepVrClient.Reset();
-	}
+	DisconnectToServer();
 }
 
 bool FStepMocapStream::ReleaseReference()
 {
 	--ReferenceCount;
-	UE_LOG(LogTemp,Log,TEXT("StepVrMocap ReferenceCount : %d  IPAddress : %s"), ReferenceCount, *UsedServerInfo.ServerIP);
 	return ReferenceCount <= 0;
 }
 
 void FStepMocapStream::NeedReference()
 {
 	++ReferenceCount;
-	UE_LOG(LogTemp, Log, TEXT("StepVrMocap ReferenceCount : %d  IPAddress : %s"), ReferenceCount, *UsedServerInfo.ServerIP);
 }
 
 void FStepMocapStream::SetServerInfo(const FMocapServerInfo& ServerInfo)
@@ -371,7 +417,7 @@ void FStepMocapStream::SetServerInfo(const FMocapServerInfo& ServerInfo)
 	ConnectToServer();
 
 	//注册更新
-	FCoreDelegates::OnBeginFrame.AddRaw(this, &FStepMocapStream::EngineBegineFrame);
+	EngineBeginHandle = FCoreDelegates::OnBeginFrame.AddRaw(this, &FStepMocapStream::EngineBegineFrame);
 }
 
 const FMocapServerInfo& FStepMocapStream::GetServerInfo()
@@ -399,26 +445,64 @@ void FStepMocapStream::GetBonesTransform_Hand(TArray<FRotator>& BonesData)
 	}
 }
 
+void FStepMocapStream::GetBonesTransform_Face(TMap<FString, float>& BonesData)
+{
+	BonesData.Empty();
+
+	if (CacheFaceFrameData.Num() > 0)
+	{
+		BonesData = CacheFaceFrameData;
+	}
+}
+
 void FStepMocapStream::ConnectToServer()
 {
 	//创建连接
 	StepVrClient = MakeShareable(new StepIK_Client());
+	
 
 	int32 Flag = StepVrClient->Connect(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP), UsedServerInfo.ServerPort);
+	bClientConnected = Flag == 0;
+
+	if (bClientConnected)
+	{
+		FString Message = FString::Printf(TEXT("StepVrMocap Connect %s Success"), *UsedServerInfo.ServerIP);
+		ShowMessage(Message);
+	}
+	else
+	{
+		FString Message = FString::Printf(TEXT("StepVrMocap Connect %s Error"), *UsedServerInfo.ServerIP);
+		ShowMessage(Message);
+		return;
+	}
+
+	FString Message = "";
 
 	//连接动捕
 	do 
 	{
 		if (StepVrClient->GetServerStatus() > 0)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("StepVrMocap Connect Error : %s"), *UsedServerInfo.ServerIP);
+			Message = TEXT("Mocap ServerStatus Error");
 			break;
 		}
 
 		StepVrClient->startData();
+		
+
+		if (StepVrClient->HasBodyData())
+		{
+			bBodyConnected = true;
+			Message = TEXT("Mocap Data Success");
+		}
+		else
+		{
+			Message = TEXT("Mocap Data Error");
+		}
+
 		bBodyConnected = true;
-		UE_LOG(LogTemp, Warning, TEXT("StepVrMocap Connect: %s Success"), *UsedServerInfo.ServerIP);
 	} while (0);
+	ShowMessage(Message);
 
 	//连接手套
 	do 
@@ -426,19 +510,62 @@ void FStepMocapStream::ConnectToServer()
 		StepVrClient->GloEnable(true);
 		StepVrClient->GloSetDir(135);
 		StepVrClient->GloSetRotType(1);
+
+		if (StepVrClient->HasGloveData())
+		{
+			bHandConnected = true;
+			Message = TEXT("Glove Data Success");
+		}
+		else
+		{
+			Message = TEXT("Glove Data Error");
+		}
 		bHandConnected = true;
 	} while (0);
-
+	ShowMessage(Message);
 
 	//连接面捕
 	do 
 	{
-		bFaceConnected = false;
+		if (StepVrClient->HasFaceData())
+		{
+			bFaceConnected = true;
+			Message = TEXT("Face Data Success");
+		}
+		else
+		{
+			Message = TEXT("Face Data Error");
+		}
+		bFaceConnected = true;
 	} while (0);
+	ShowMessage(Message);
 }
+void FStepMocapStream::DisconnectToServer()
+{
+	bClientConnected = false;
+	bBodyConnected = false;
+	bHandConnected = false;
+	bFaceConnected = false;
 
+	if (StepVrClient.IsValid())
+	{
+		StepVrClient->StopData();
+		StepVrClient->GloEnable(false);
+		StepVrClient.Reset();
+	}
+
+	FString Message = FString::Printf(TEXT("StepMocapStream Delete : %s"), *UsedServerInfo.ServerIP);
+	ShowMessage(Message);
+
+	FCoreDelegates::OnBeginFrame.Remove(EngineBeginHandle);
+}
 void FStepMocapStream::EngineBegineFrame()
 {
+	if (!bClientConnected)
+	{
+		return;
+	}
+
 	//动捕数据
 	if (bBodyConnected)
 	{
@@ -513,6 +640,19 @@ void FStepMocapStream::EngineBegineFrame()
 
 	if (bFaceConnected)
 	{
+		static float GFaceData[200];
+		int32 length;
+		StepVrClient->GetFaceData(GFaceData, length);
 
+		CacheFaceFrameData.Empty(length);
+
+		static UEnum* GRootEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("FStepFaceMorghs"), true);
+		for (int32 i = 0; i < length; i++)
+		{
+			FString CurShooterDataStr(GRootEnumPtr->GetNameByValue(i).ToString());
+			CacheFaceFrameData.Add(CurShooterDataStr, GFaceData[i]);
+		}
 	}
 }
+
+

@@ -26,15 +26,18 @@ public:
 
 	void GetBonesTransform_Body(TArray<FTransform>& BonesData);
 	void GetBonesTransform_Hand(TArray<FRotator>& BonesData);
+	void GetBonesTransform_Face(TMap<FString,float>& BonesData);
 
-
-	bool IsConnected() { return bBodyConnected; }
-
-	void ConnectToServer();
+	bool IsConnected()		{ return bClientConnected; }
+	bool IsConnectedBody()	{ return bBodyConnected; }
+	bool IsConnectedHand()	{ return bHandConnected; }
+	bool IsConnectedFace()	{ return bFaceConnected; }
 
 protected:
 	void EngineBegineFrame();
 
+	void ConnectToServer();
+	void DisconnectToServer();
 
 private:
 	//当前链接属性
@@ -51,9 +54,9 @@ private:
 	TArray<FRotator> CacheHandFrameData;
 
 	//面捕数据
+	TMap<FString,float> CacheFaceFrameData;
 
-
-	uint64	PreCacheFrame;
+	FDelegateHandle	EngineBeginHandle;
 
 	bool bClientConnected = false;
 	bool bBodyConnected = false;
@@ -76,7 +79,7 @@ public:
 	 * 全身动捕
 	 */
 	bool BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, TMap<FString, FBoneReference>& BoneReferences);
-	bool IsBound();
+	bool IsBodyBound();
 	bool UpdateBodyFrameData(TArray<FTransform>& outPose);
 	int32 GetUE4BoneIndex(int32 SegmentIndex) const;
 	float GetFigureScale();
@@ -89,12 +92,19 @@ public:
 	bool UpdateHandFrameData(TArray<FRotator>& outPose);
 	int32 GetUE4HandBoneIndex(int32 SegmentIndex) const;
 
+	/**
+	 * 面部捕捉
+	 */
+	bool BindToFaceMorghTarget(FAnimInstanceProxy* AnimInstanceProxy,TArray<FString>& MorghTarget);
+	bool UpdateFaceFrameData(TMap<FString,float>& outPose);
+	bool IsFaceBound();
+
 private:
 	FString mSubjectName;
 	FString mIpAddress;
 
 	//ServerStream
-	TWeakPtr<FStepMocapStream> StepMpcapStream;
+	TSharedPtr<FStepMocapStream> StepMpcapStream;
 
 	/**
 	 * 全身动捕数据
@@ -107,4 +117,9 @@ private:
 	 */
 	TArray<int32> UE4HandBoneIndices;
 	bool mHandBound;
+
+	/**
+	 * 面部捕捉
+	 */
+	bool mFaceBound;
 };

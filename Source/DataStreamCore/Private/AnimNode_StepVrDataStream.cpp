@@ -1,8 +1,12 @@
 ﻿// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
 #include "AnimNode_StepVrDataStream.h"
+#include "StepVrReplicatedComponent.h"
+
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/MorphTarget.h"
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
+
 
 
 
@@ -45,11 +49,20 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 	{
 		mSkeletonBinding.BindToSkeleton(AnimInstanceProxy,BindMocapBones);
 		mSkeletonBinding.BindToHandSkeleton(AnimInstanceProxy, BindMocapHandBones);
+		mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, FaceMorphTargetName);
 
 		for (auto& Ref : RedundanceMocapBones)
 		{
 			Ref.Initialize(skeleton);
 		}
+
+		//for (auto& Ref : FaceMorphTargetName)
+		//{
+		//	if (!BindMorphTarget.Contains(Ref))
+		//	{
+		//		BindMorphTarget.Add(Ref, FStepFaceMorghs::Expressions_abdomExpansion_max);
+		//	}
+		//}
 	}
 }
 
@@ -91,7 +104,7 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	// Forward to the incoming pose link.
 	check(Context.AnimInstanceProxy != nullptr);
 
-	MocapServerInfo.ServerIP = CheckConert2LocalIP(ServerName.ToString());
+	MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
 	MocapServerInfo.ServerPort = PortNumber;
 
 	BindServerStream(Context.AnimInstanceProxy);
@@ -102,10 +115,14 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FAnimNode_StepDataStream::Update_AnyThread"), STAT_StepMocapUpdate, STATGROUP_Game);
 
+	if (!bReplicatedComponent)
+	{
+		InitReplicateComponet();
+	}
+
 	InPose.Update(Context);
 	EvaluateGraphExposedInputs.Execute(Context);
 
-	DataIsReady = false;
 	//更新数据
 	do 
 	{
@@ -113,7 +130,7 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 		{
 			break;
 		}
-		if (mSkeletonBinding.IsBound())
+		if (mSkeletonBinding.IsBodyBound())
 		{
 			mSkeletonBinding.UpdateBodyFrameData(BonesData);
 		}
@@ -121,8 +138,10 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 		{
 			mSkeletonBinding.UpdateHandFrameData(HandBonesData);
 		}
-
-		DataIsReady = true;
+		if (mSkeletonBinding.IsFaceBound())
+		{
+			mSkeletonBinding.UpdateFaceFrameData(FaceMorphTargetData);
+		}
 	} while (0);
 }
 
@@ -137,15 +156,10 @@ void FAnimNode_StepDataStream::Evaluate_AnyThread(FPoseContext& Output)
 	check(Output.AnimInstanceProxy->GetSkeleton() != nullptr);
 	Output.Pose.ResetToRefPose();
 
-	if (!DataIsReady)
-	{
-		return;
-	}
-
 	//更新动捕姿态
 	do 
 	{
-		if (BonesData.Num() != STEPBONESNUMS)
+		if (!mSkeletonBinding.IsBodyBound())
 		{
 			break;
 		}
@@ -177,10 +191,11 @@ void FAnimNode_StepDataStream::Evaluate_AnyThread(FPoseContext& Output)
 		}
 	} while (0);
 
+
 	//更新手部骨骼姿态
 	do{
 		
-		if (HandBonesData.Num() != STEPHANDBONESNUMS)
+		if (!mSkeletonBinding.IsHandBound())
 		{
 			break;
 		}
@@ -202,38 +217,104 @@ void FAnimNode_StepDataStream::Evaluate_AnyThread(FPoseContext& Output)
 			}
 		}
 	} while (0);
+
+
+	//更新面部捕捉
+	do 
+	{
+		if (!mSkeletonBinding.IsFaceBound())
+		{
+			break;
+		}
+
+		USkeletalMeshComponent* SkeletonComponet = Output.AnimInstanceProxy->GetSkelMeshComponent();
+		if (SkeletonComponet == nullptr)
+		{
+			break;
+		}
+
+		static UEnum* GRootEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("FStepFaceMorghs"), true);
+		for (auto& temp : FaceMorphTargetName)
+		{
+			if (GRootEnumPtr == nullptr)
+			{
+				break;
+			}
+
+			FStepFaceMorghs* EnumPtr = BindMorphTarget.Find(temp);
+			if (EnumPtr == nullptr)
+			{
+				continue;
+			}
+
+			FString CurShooterDataStr(GRootEnumPtr->GetNameByValue((int)(*EnumPtr)).ToString());
+			float* ValuePtr = FaceMorphTargetData.Find(CurShooterDataStr);
+			if (ValuePtr == nullptr)
+			{
+				continue;
+			}
+
+			SkeletonComponet->SetMorphTarget(FName(*CurShooterDataStr), *ValuePtr);
+		}
+
+	} while (0);
 }
 
 void FAnimNode_StepDataStream::CacheBones_AnyThread(const FAnimationCacheBonesContext & Context)
 {
 	InPose.CacheBones(Context);
 }
+
+void FAnimNode_StepDataStream::OverrideAsset(class UAnimationAsset* NewAsset)
+{
+// 	USkeletalMesh* Skeleton= NewAsset->GetPreviewMesh();
+// 
+// 	for (int32 i = 0; i < Skeleton->MorphTargets.Num(); i++)
+// 	{
+// 		FString MorghName = Skeleton->MorphTargets[i]->GetName();
+// 		BindMorphTarget.Add(MorghName,FStepFaceMorghs::Expressions_abdomExpansion_max);
+// 	}
+}
+
+void FAnimNode_StepDataStream::PostCompile(const USkeleton * InSkeleton)
+{
+	//BindMorphTarget.Add(TEXT("asdasd"), FStepFaceMorghs::Expressions_abdomExpansion_max);
+}
+
 void FAnimNode_StepDataStream::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
 	Super::OnInitializeAnimInstance(InProxy, InAnimInstance);
 
 	OwnerPawn = Cast<APawn>(InAnimInstance->GetOwningActor());	
+
 	CacheAnimInstanceProxy = InProxy;
 }
 
-void FAnimNode_StepDataStream::InitData()
+void FAnimNode_StepDataStream::InitReplicateComponet()
 {
-}
-
-FString FAnimNode_StepDataStream::CheckConert2LocalIP(const FString& IP)
-{
-	FString Addr = IP;
-	if (IP.Equals(TEXT("127.0.0.1"),ESearchCase::IgnoreCase) || 
-		IP.Equals(TEXT("localhost"), ESearchCase::IgnoreCase))
+	if (OwnerPawn == nullptr)
 	{
-		bool CanBind = false;
-		TSharedRef<FInternetAddr> LocalIp = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, CanBind);
-		if (LocalIp->IsValid())
-		{
-			Addr = LocalIp->ToString(false);
-		}
+		return;
 	}
 
-	return Addr;
-}
+	if (!OwnerPawn->HasActorBegunPlay())
+	{
+		return;
+	}
 
+	ReplicatedComponent = Cast<UStepReplicatedComponent>(OwnerPawn->GetComponentByClass(UStepReplicatedComponent::StaticClass()));
+	if (ReplicatedComponent == nullptr)
+	{
+		bReplicatedComponent = true;
+		return;
+	}
+
+	if (ReplicatedComponent->PlayerAddr.Equals(REPLICATE_NONE))
+	{
+		return;
+	}
+
+	MocapServerInfo.ServerIP = Convert2LocalIP(ReplicatedComponent->PlayerAddr);
+	mSkeletonBinding.ConnectToServer(MocapServerInfo);
+	bReplicatedComponent = true;
+}

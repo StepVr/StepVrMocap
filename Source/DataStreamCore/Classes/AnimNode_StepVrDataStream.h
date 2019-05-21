@@ -4,14 +4,13 @@
 #pragma once
 
 #include "StepVrStream.h"
+#include "StepMocapDefine.h"
 #include "AnimNode_StepVrDataStream.generated.h"
 
-enum FStepControllState
-{
-	Invalid,
-	Local,
-	Remote,
-};
+
+class UStepReplicatedComponent;
+
+
 
 
 USTRUCT(BlueprintType)
@@ -33,6 +32,13 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 
 	UPROPERTY(EditAnywhere, Category = StepMocapBindBones)
 	TMap<FString, FBoneReference>	BindMocapHandBones;
+
+	/**
+	 * FString 骨架MorphTarget
+	 * FStepFaceMorghs Step对应的MorphTarget
+	 */
+	UPROPERTY(EditAnywhere, Category = StepMocapBindBones)
+	TMap<FString, FStepFaceMorghs>	BindMorphTarget;
 
 	/**
 	 * 需要归零多余的骨骼
@@ -63,14 +69,14 @@ public:
 	void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	void Evaluate_AnyThread(FPoseContext& Output) override;
 	void CacheBones_AnyThread(const FAnimationCacheBonesContext & Context) override;
+	void OverrideAsset(class UAnimationAsset* NewAsset) override;
+	void PostCompile(const class USkeleton* InSkeleton) override;
 	// End of FAnimNode_Base interface
 	
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 
 private:
-	void InitData();
-
-	FString CheckConert2LocalIP(const FString& IP);
+	void InitReplicateComponet();
 
 	//绑定骨架
 	FStepDataToSkeletonBinding mSkeletonBinding;
@@ -83,7 +89,9 @@ private:
 	//手部骨骼姿态
 	TArray<FRotator> HandBonesData;
 
-	bool DataIsReady = false;
+	//骨架面部MorphTarget
+	TMap<FString, float> FaceMorphTargetData;
+	TArray<FString> FaceMorphTargetName;
 
 	//链接server属性
 	FMocapServerInfo MocapServerInfo;
@@ -92,7 +100,13 @@ private:
 	FStepControllState StepControllState = FStepControllState::Invalid;
 	const APawn* OwnerPawn = nullptr;
 	uint32 PlayerAddrID = 0;
-	bool IsInit = false;
+	
+
+	//同步组件
+	UStepReplicatedComponent* ReplicatedComponent = nullptr;
+
+	//是否初始化
+	bool bReplicatedComponent = false;
 
 // 	IKinemaReplicateData	FrameCacheData;
 // 	IKinemaReplicateData	FrameSendData;

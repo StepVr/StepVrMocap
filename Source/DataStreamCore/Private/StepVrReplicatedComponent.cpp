@@ -1,9 +1,12 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "StepVrReplicatedComponent.h"
+#include "StepMocapDefine.h"
 
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
+#include "Kismet/GameplayStatics.h"
+
 
 
 
@@ -15,16 +18,39 @@ UStepReplicatedComponent::UStepReplicatedComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 	bReplicates = true;
 
+	PlayerAddr = REPLICATE_NONE;
 	// ...
 }
 
+void UStepReplicatedComponent::SetPlayerAddr(const FString& InAddr)
+{
+	SetPlayerAddrOnServer(InAddr);
+}
 
-void UStepReplicatedComponent::SetPlayerAddrOnServer_Implementation(const uint32 InAddr)
+//FString UStepReplicatedComponent::GetClientLocalIP()
+//{
+//	FString NewIP = GetClientLocalIP_BP();
+//
+//	if (NewIP.IsEmpty())
+//	{
+//		NewIP = GetLocalIP();
+//	}
+//
+//	return;
+//}
+//
+//FString UStepReplicatedComponent::GetClientLocalIP_BP()
+//{
+//
+//}
+
+
+void UStepReplicatedComponent::SetPlayerAddrOnServer_Implementation(const FString& InAddr)
 {
 	PlayerAddr = InAddr;
 }
 
-bool UStepReplicatedComponent::SetPlayerAddrOnServer_Validate(const uint32 InAddr)
+bool UStepReplicatedComponent::SetPlayerAddrOnServer_Validate(const FString& InAddr)
 {
 	return true;
 }
@@ -34,26 +60,25 @@ void UStepReplicatedComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//APawn* Pawn = Cast<APawn>(GetOwner());
-	//if (Pawn == nullptr)
-	//{
-	//	return;
-	//}
+	APawn* Pawn = Cast<APawn>(GetOwner());
+	if (Pawn == nullptr || Pawn->Controller == nullptr)
+	{
+		return;
+	}
 
-	//bIsLocalControll = Pawn->IsLocallyControlled();
-	//if (bIsLocalControll)
-	//{
-	//	if (STEPVR_SERVER_IsValid)
-	//	{
-	//		uint32 Addr = STEPVR_SERVER->GetLocalAddress();
-	//		SetPlayerAddrOnServer(Addr);
-	//	}
-	//	else
-	//	{
-	//		SetPlayerAddrOnServer(1);
-	//	}
-	//}
-	
+	APlayerController* LocalController = UGameplayStatics::GetPlayerController(Pawn, 0);
+	if (LocalController == nullptr)
+	{
+		return;
+	}
+
+	bIsLocalControll = Cast<AController>(LocalController) == Pawn->Controller;
+
+	if (bIsLocalControll)
+	{
+		//PlayerAddr = GetClientLocalIP()
+		//SetPlayerAddrOnServer(PlayerAddr);
+	}
 }
 void UStepReplicatedComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
