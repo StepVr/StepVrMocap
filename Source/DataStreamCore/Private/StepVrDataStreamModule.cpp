@@ -2,6 +2,7 @@
 
 #include "StepVrDataStreamModule.h"
 #include "Engine.h"
+#include "StepMocapDefine.h"
 
 
 
@@ -17,6 +18,9 @@ void FreeHandle()
 
 void FStepDataStreamModule::StartupModule()
 {
+	//加载面捕数据
+	LoadMorphTargets();
+
 	TArray<FString> DllPaths;
 	FString Platform = (PLATFORM_WINDOWS&&PLATFORM_64BITS) ? TEXT("x64") : TEXT("x32");
 	DllPaths.Add(FPaths::ProjectPluginsDir() + TEXT("StepVrMocap/ThirdParty/lib/") + Platform);

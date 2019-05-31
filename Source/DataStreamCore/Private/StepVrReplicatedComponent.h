@@ -32,4 +32,11 @@ protected:
 	virtual void BeginPlay() override;		
 	
 	bool bIsLocalControll = false;
+
+	/**
+	 * true	：默认使用本地ip，无视蓝图中设置
+	 * false ：可以指定当前角色使用SetPlayerAddr 设定IP
+	 */
+	UPROPERTY(EditDefaultsOnly)
+	bool AutoReplicateLocal = true;
 };

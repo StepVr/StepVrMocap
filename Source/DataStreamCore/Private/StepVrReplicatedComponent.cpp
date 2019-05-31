@@ -74,10 +74,10 @@ void UStepReplicatedComponent::BeginPlay()
 
 	bIsLocalControll = Cast<AController>(LocalController) == Pawn->Controller;
 
-	if (bIsLocalControll)
+	if (bIsLocalControll && AutoReplicateLocal)
 	{
-		//PlayerAddr = GetClientLocalIP()
-		//SetPlayerAddrOnServer(PlayerAddr);
+		PlayerAddr = GetLocalIP();
+		SetPlayerAddrOnServer(PlayerAddr);
 	}
 }
 void UStepReplicatedComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

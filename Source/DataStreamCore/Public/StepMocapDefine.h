@@ -10,6 +10,8 @@ DECLARE_LOG_CATEGORY_EXTERN(LogStepMocap, Log, All)
 void ShowMessage(const FString& Log);
 FString GetLocalIP();
 FString Convert2LocalIP(const FString& NewIP);
+
+void LoadMorphTargets();
 /************************************************************************/
 
 
@@ -198,7 +200,7 @@ enum class FStepFaceMorghs : uint8
 	Expressions_eyesVert_min = 50,
 	Expressions_eyesVert_max = 51
 };
-
+extern TArray<FString> StepFaceMorphTargets;
 
 //USTRUCT(BlueprintType)
 //struct FStepVrFaceAtt

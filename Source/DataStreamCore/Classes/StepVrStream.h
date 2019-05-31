@@ -110,16 +110,16 @@ private:
 	 * 全身动捕数据
 	 */
 	TArray<int32> UE4BoneIndices;
-	bool mBound;
+	bool mBound = false;
 
 	/**
 	 * 手部动捕数据
 	 */
 	TArray<int32> UE4HandBoneIndices;
-	bool mHandBound;
+	bool mHandBound = false;
 
 	/**
 	 * 面部捕捉
 	 */
-	bool mFaceBound;
+	bool mFaceBound = true;
 };

@@ -1,9 +1,16 @@
 ﻿// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
 #include "StepMocapDefine.h"
+
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
+#include "Json.h"
+
+
+
 
 DEFINE_LOG_CATEGORY(LogStepMocap)
+
+TArray<FString> StepFaceMorphTargets = {};
 
 void ShowMessage(const FString& Log)
 {
@@ -44,4 +51,45 @@ FString Convert2LocalIP(const FString& NewIP)
 	}
 
 	return Addr;
+}
+
+void LoadMorphTargets()
+{
+	FString JsonData;
+	if (!FFileHelper::LoadFileToString(JsonData, TEXT("C://StepFace//config//configBlends.json")))
+	{
+		ShowMessage(TEXT("Read C://StepFace//config//configBlends.json Fail"));
+		return;
+	}
+
+	bool IsSuccess = false;
+	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+	TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(JsonData);
+	do 
+	{
+		if (!FJsonSerializer::Deserialize(JsonReader, JsonObject))
+		{
+			break;
+		}
+		if (!JsonObject.IsValid())
+		{
+			break;
+		}
+		TSharedPtr<FJsonObject> JsonObject1 = JsonObject->GetObjectField(TEXT("ValidBlendShapes"));
+		if (!JsonObject1.IsValid())
+		{
+			break;
+		}
+
+		for (auto& Temp : JsonObject1->Values)
+		{
+			StepFaceMorphTargets.Add(Temp.Key);
+		}
+		IsSuccess = true;
+	} while (0);
+
+	if (!IsSuccess)
+	{
+		ShowMessage(TEXT("Parse MorphTargets Config Error"));
+	}
 }

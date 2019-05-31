@@ -253,11 +253,13 @@ bool FStepDataToSkeletonBinding::BindToHandSkeleton(FAnimInstanceProxy* AnimInst
 	UE4HandBoneIndices.Empty(STEPHANDBONESNUMS);
 	int32 ue4BoneIndex = INDEX_NONE;
 
+	int32 TotalNums = 0;
 	for (auto& BoneName : StepHandBoneNames)
 	{
 		FBoneReference* Ref = BoneReferences.Find(BoneName);
 		if (Ref == nullptr)
 		{
+			UE4HandBoneIndices.Add(INDEX_NONE);
 			continue;
 		}
 
@@ -266,6 +268,7 @@ bool FStepDataToSkeletonBinding::BindToHandSkeleton(FAnimInstanceProxy* AnimInst
 		if (Ref->HasValidSetup())
 		{
 			UE4HandBoneIndices.Add(Ref->BoneIndex);
+			TotalNums++;
 		}
 		else
 		{
@@ -274,7 +277,8 @@ bool FStepDataToSkeletonBinding::BindToHandSkeleton(FAnimInstanceProxy* AnimInst
 		}
 	}
 
-	mHandBound = UE4HandBoneIndices.Num() == STEPHANDBONESNUMS;
+	//两根base
+	mHandBound = TotalNums >= (STEPHANDBONESNUMS - 2);
 
 	return mHandBound;
 }
@@ -307,6 +311,7 @@ int32 FStepDataToSkeletonBinding::GetUE4HandBoneIndex(int32 SegmentIndex) const
 
 bool FStepDataToSkeletonBinding::BindToFaceMorghTarget(FAnimInstanceProxy* AnimInstanceProxy, TArray<FString>& MorghTarget)
 {
+	//暂时不用
 	mFaceBound = false;
 	MorghTarget.Empty();
 
@@ -644,13 +649,15 @@ void FStepMocapStream::EngineBegineFrame()
 		int32 length;
 		StepVrClient->GetFaceData(GFaceData, length);
 
+		//static UEnum* GRootEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("FStepFaceMorghs"), true);
+		//GRootEnumPtr->GetNameByValue(i).ToString()
 		CacheFaceFrameData.Empty(length);
-
-		static UEnum* GRootEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("FStepFaceMorghs"), true);
 		for (int32 i = 0; i < length; i++)
 		{
-			FString CurShooterDataStr(GRootEnumPtr->GetNameByValue(i).ToString());
-			CacheFaceFrameData.Add(CurShooterDataStr, GFaceData[i]);
+			if (StepFaceMorphTargets.IsValidIndex(i))
+			{
+				CacheFaceFrameData.Add(StepFaceMorphTargets[i], GFaceData[i]);
+			}
 		}
 	}
 }

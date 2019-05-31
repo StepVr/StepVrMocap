@@ -38,7 +38,7 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	 * FStepFaceMorghs Step对应的MorphTarget
 	 */
 	UPROPERTY(EditAnywhere, Category = StepMocapBindBones)
-	TMap<FString, FStepFaceMorghs>	BindMorphTarget;
+	TMap<FString, FString>	BindMorphTarget;
 
 	/**
 	 * 需要归零多余的骨骼
@@ -91,7 +91,6 @@ private:
 
 	//骨架面部MorphTarget
 	TMap<FString, float> FaceMorphTargetData;
-	TArray<FString> FaceMorphTargetName;
 
 	//链接server属性
 	FMocapServerInfo MocapServerInfo;

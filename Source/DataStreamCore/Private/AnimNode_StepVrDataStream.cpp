@@ -24,6 +24,11 @@ FAnimNode_StepDataStream::FAnimNode_StepDataStream()
 	RedundanceMocapBones.Add(FBoneReference(TEXT("Spine")));
 	RedundanceMocapBones.Add(FBoneReference(TEXT("Spine2")));
 	RedundanceMocapBones.Add(FBoneReference(TEXT("neck1")));
+
+	for (auto& Temp : StepFaceMorphTargets)
+	{
+		BindMorphTarget.Add(Temp, Temp);
+	}
 }
 
 FAnimNode_StepDataStream::~FAnimNode_StepDataStream()
@@ -49,7 +54,7 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 	{
 		mSkeletonBinding.BindToSkeleton(AnimInstanceProxy,BindMocapBones);
 		mSkeletonBinding.BindToHandSkeleton(AnimInstanceProxy, BindMocapHandBones);
-		mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, FaceMorphTargetName);
+		//mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, FaceMorphTargetName);
 
 		for (auto& Ref : RedundanceMocapBones)
 		{
@@ -233,28 +238,17 @@ void FAnimNode_StepDataStream::Evaluate_AnyThread(FPoseContext& Output)
 			break;
 		}
 
-		static UEnum* GRootEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("FStepFaceMorghs"), true);
-		for (auto& temp : FaceMorphTargetName)
+		//static UEnum* GRootEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("FStepFaceMorghs"), true);
+		//GRootEnumPtr->GetNameByValue((int)(*EnumPtr)).ToString()
+		for (auto& temp : BindMorphTarget)
 		{
-			if (GRootEnumPtr == nullptr)
-			{
-				break;
-			}
-
-			FStepFaceMorghs* EnumPtr = BindMorphTarget.Find(temp);
-			if (EnumPtr == nullptr)
-			{
-				continue;
-			}
-
-			FString CurShooterDataStr(GRootEnumPtr->GetNameByValue((int)(*EnumPtr)).ToString());
-			float* ValuePtr = FaceMorphTargetData.Find(CurShooterDataStr);
+			float* ValuePtr = FaceMorphTargetData.Find(temp.Key);
 			if (ValuePtr == nullptr)
 			{
 				continue;
 			}
 
-			SkeletonComponet->SetMorphTarget(FName(*CurShooterDataStr), *ValuePtr);
+			SkeletonComponet->SetMorphTarget(FName(*temp.Value), *ValuePtr);
 		}
 
 	} while (0);
