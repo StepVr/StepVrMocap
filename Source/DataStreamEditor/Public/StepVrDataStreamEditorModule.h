@@ -1,11 +1,7 @@
 //* Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
 
 #pragma once
-
-#include "Modules/ModuleInterface.h"
-
-
-DECLARE_LOG_CATEGORY_EXTERN(LogStepDataStreamEditor, Warning, All);
+#include "Modules/ModuleManager.h"
 
 class FStepDataStreamEditorModule : public IModuleInterface
 {

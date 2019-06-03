@@ -24,7 +24,7 @@
     },
     {
       "Name": "StepVrDataStreamEditor",
-      "Type": "Developer",
+      "Type": "Editor",
       "LoadingPhase": "Default",
       "WhitelistPlatforms": [
         "Win64"

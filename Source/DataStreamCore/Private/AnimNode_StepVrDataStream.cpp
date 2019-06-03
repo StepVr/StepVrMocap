@@ -209,6 +209,11 @@ void FAnimNode_StepDataStream::Evaluate_AnyThread(FPoseContext& Output)
 		{
 			auto ue4Index = mSkeletonBinding.GetUE4HandBoneIndex(i);
 
+			if (i == 0 || i == 16)
+			{
+				continue;
+			}
+
 			if (ue4Index != INDEX_NONE)
 			{
 				auto SkeletonIndex = Output.Pose.GetBoneContainer().MakeCompactPoseIndex(FMeshPoseBoneIndex(ue4Index));
