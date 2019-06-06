@@ -19,6 +19,8 @@ public class StepVrDataStreamCore : ModuleRules
         //OptimizeCode = CodeOptimization.InShippingBuildsOnly;
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+        InitStepMagic(true);
+
         PrivateIncludePaths.AddRange( new string[] 
         {
             "DataStreamCore/Private",
@@ -57,6 +59,24 @@ public class StepVrDataStreamCore : ModuleRules
         {
             PrivateIncludePaths.Add(Path.Combine(LibPath, "include"));
             PublicIncludePaths.Add(Path.Combine(LibPath, "include"));
+        }
+    }
+
+    public void InitStepMagic(bool IsValid)
+    {
+        if(Target.Platform == UnrealTargetPlatform.Win64 && IsValid)
+        {
+            PublicDefinitions.Add("WITH_STEPMAGIC=1");
+
+            string LibrariesPath = Path.Combine(LibPath, "lib", "x64");
+
+            PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "VirtualShootingMMap.lib"));
+            PublicDelayLoadDLLs.Add("VirtualShootingMMap.dll");
+            RuntimeDependencies.Add(new RuntimeDependency(Path.Combine(LibrariesPath, "VirtualShootingMMap.dll")));
+        }
+        else
+        {
+            PublicDefinitions.Add("WITH_STEPMAGIC=0");
         }
     }
 }

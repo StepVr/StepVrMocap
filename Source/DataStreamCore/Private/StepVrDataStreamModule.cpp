@@ -7,6 +7,8 @@
 
 
 static void* CPPUdpClientDllHandle = nullptr;
+static void* StepMagicHandle = nullptr;
+
 void FreeHandle()
 {
 	if (CPPUdpClientDllHandle != nullptr)
@@ -30,7 +32,19 @@ void FStepDataStreamModule::StartupModule()
 	for (int32 i = 0; i < DllPaths.Num(); i++)
 	{
 		FPlatformProcess::PushDllDirectory(*DllPaths[i]);
+		
+		//加载动捕DLL
 		CPPUdpClientDllHandle = FPlatformProcess::GetDllHandle(*(DllPaths[i] + "/StepIKClientDllCPP.dll"));
+
+		//加载影视DLL
+#if WITH_STEPMAGIC
+		if (StepMagicHandle == nullptr)
+		{
+			StepMagicHandle = FPlatformProcess::GetDllHandle(*(DllPaths[i] + "/VirtualShootingMMap.dll"));
+		}
+#endif
+		
+
 		FPlatformProcess::PopDllDirectory(*DllPaths[i]);
 
 		if (CPPUdpClientDllHandle != nullptr)
@@ -43,6 +57,10 @@ void FStepDataStreamModule::StartupModule()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Load StepMocapDll Faild"));
 	}
+
+
+
+
 }
 
 

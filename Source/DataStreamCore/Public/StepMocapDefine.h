@@ -140,6 +140,8 @@ const TArray<FString> StepHandBoneNames = {
 /************************************************************************/
 /* 面部捕捉                                                              */
 /************************************************************************/
+#define  STEPFACEMORGHNUMS 130
+
 UENUM(BlueprintType)
 enum class FStepFaceMorghs : uint8
 {

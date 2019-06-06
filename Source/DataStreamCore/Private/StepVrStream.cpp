@@ -8,14 +8,27 @@
 #include "Animation/MorphTarget.h"
 #include "Misc/CoreDelegates.h"
 
+#if WITH_STEPMAGIC
+#include "VirtualShootingDll.h"
+/**
+ * 当前帧从StepMagic获取的数据
+ */
+static MFGValue GCur_IP_Frame;
+#endif
 
+/**
+ * 当前帧从Service获取的数据
+ */
+static int32 GStepFaceLength = 0;
+static float GStepFaceData[STEPFACEMORGHNUMS];
+static V4 GStepHandData[STEPHANDBONESNUMS];
+static transform GStepMocapData[STEPBONESNUMS];
 
-
-static transform StepVrMocapData[STEPBONESNUMS];
+/**
+ * 动捕临时数据，手套子节点用
+ */
 static TArray<FTransform> UEMocapData;
 
-
-transform GTR;
 
 namespace StepMocapServers
 {
@@ -86,9 +99,6 @@ void StepMocapServers::ReturnStream(TSharedRef<FStepMocapStream> StepMocapStream
 
 void ConvertToUE(transform* InData, TArray<FTransform>& OutData)
 {
-
-	GTR = InData[9];
-
 	OutData.Init(FTransform::Identity, STEPBONESNUMS);
 
 	FVector TempVec;
@@ -419,7 +429,11 @@ void FStepMocapStream::SetServerInfo(const FMocapServerInfo& ServerInfo)
 	//初始化数据池
 	ReferenceCount = 0;
 
-	ConnectToServer();
+#if WITH_STEPMAGIC
+	ConnectToStepMagic();
+#else
+	ConnectToServices();
+#endif
 
 	//注册更新
 	EngineBeginHandle = FCoreDelegates::OnBeginFrame.AddRaw(this, &FStepMocapStream::EngineBegineFrame);
@@ -460,7 +474,7 @@ void FStepMocapStream::GetBonesTransform_Face(TMap<FString, float>& BonesData)
 	}
 }
 
-void FStepMocapStream::ConnectToServer()
+void FStepMocapStream::ConnectToServices()
 {
 	//创建连接
 	StepVrClient = MakeShareable(new StepIK_Client());
@@ -545,8 +559,20 @@ void FStepMocapStream::ConnectToServer()
 	} while (0);
 	ShowMessage(Message);
 }
+void FStepMocapStream::ConnectToStepMagic()
+{
+#if WITH_STEPMAGIC
+	StepMagicClient = MakeShareable(new CVirtualShootingDll);
+	bClientConnected = true;
+	bBodyConnected = true;
+	bHandConnected = true;
+	bFaceConnected = true;
+#endif
+}
 void FStepMocapStream::DisconnectToServer()
 {
+	FCoreDelegates::OnBeginFrame.Remove(EngineBeginHandle);
+
 	bClientConnected = false;
 	bBodyConnected = false;
 	bHandConnected = false;
@@ -559,10 +585,15 @@ void FStepMocapStream::DisconnectToServer()
 		StepVrClient.Reset();
 	}
 
+#if WITH_STEPMAGIC
+	if (StepMagicClient.IsValid())
+	{
+		StepMagicClient.Reset();
+	}
+#endif
+
 	FString Message = FString::Printf(TEXT("StepMocapStream Delete : %s"), *UsedServerInfo.ServerIP);
 	ShowMessage(Message);
-
-	FCoreDelegates::OnBeginFrame.Remove(EngineBeginHandle);
 }
 void FStepMocapStream::EngineBegineFrame()
 {
@@ -570,12 +601,28 @@ void FStepMocapStream::EngineBegineFrame()
 	{
 		return;
 	}
+	else
+	{
+#if WITH_STEPMAGIC
+		MultiTracker stMultiTracker;
+		StepMagicClient->GetMultiTracker(stMultiTracker);
+		MFGKey Keys;
+		Keys.strIP = std::string(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP));
+		Keys.nPort = UsedServerInfo.ServerPort;
+		auto FindValue = stMultiTracker.mapMFG.find(Keys);
+		if (FindValue != stMultiTracker.mapMFG.end())
+		{
+			GCur_IP_Frame = FindValue->second;
+		}
+
+#endif
+	}
 
 	//动捕数据
 	if (bBodyConnected)
 	{
-		StepVrClient->getData((transform*)StepVrMocapData);
-		ConvertToUE(StepVrMocapData, UEMocapData);
+		UpdateFrameData_Body();
+		ConvertToUE(GStepMocapData, UEMocapData);
 
 		CacheBodyFrameData.Empty();
 		FTransform TeampData;
@@ -604,12 +651,10 @@ void FStepMocapStream::EngineBegineFrame()
 		}
 
 		TArray<FRotator> UEMocapDataGlobal;
-		V4 GRotators[STEPHANDBONESNUMS];
+		UpdateFrameData_Hand();
+		ConvertToUE(GStepHandData, UEMocapDataGlobal);
+
 		CacheHandFrameData.Empty();
-
-		StepVrClient->GetGloveData(GRotators);
-		ConvertToUE(GRotators, UEMocapDataGlobal);
-
 		if (UEMocapDataGlobal.Num() != STEPHANDBONESNUMS)
 		{
 			break;
@@ -645,21 +690,46 @@ void FStepMocapStream::EngineBegineFrame()
 
 	if (bFaceConnected)
 	{
-		static float GFaceData[200];
-		int32 length;
-		StepVrClient->GetFaceData(GFaceData, length);
+		UpdateFrameData_Face();
 
 		//static UEnum* GRootEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("FStepFaceMorghs"), true);
 		//GRootEnumPtr->GetNameByValue(i).ToString()
-		CacheFaceFrameData.Empty(length);
-		for (int32 i = 0; i < length; i++)
+		CacheFaceFrameData.Empty(GStepFaceLength);
+		for (int32 i = 0; i < GStepFaceLength; i++)
 		{
 			if (StepFaceMorphTargets.IsValidIndex(i))
 			{
-				CacheFaceFrameData.Add(StepFaceMorphTargets[i], GFaceData[i]);
+				CacheFaceFrameData.Add(StepFaceMorphTargets[i], GStepFaceData[i]);
 			}
 		}
 	}
 }
 
+void FStepMocapStream::UpdateFrameData_Body()
+{
+#if WITH_STEPMAGIC
+	FMemory::Memcpy(GStepMocapData, GCur_IP_Frame.StepVrMocapData, sizeof(transform) * STEPBONESNUMS);
+#else
+	StepVrClient->getData((transform*)GStepMocapData);
+#endif
+}
+
+void FStepMocapStream::UpdateFrameData_Hand()
+{
+#if WITH_STEPMAGIC
+	FMemory::Memcpy(GStepHandData, GCur_IP_Frame.GRotators, sizeof(V4) * STEPHANDBONESNUMS);
+#else
+	StepVrClient->GetGloveData(GStepHandData);
+#endif
+}
+
+void FStepMocapStream::UpdateFrameData_Face()
+{
+#if WITH_STEPMAGIC
+	GStepFaceLength = GCur_IP_Frame.stFaceInf.nValidNum;
+	FMemory::Memcpy(GStepFaceData, GCur_IP_Frame.stFaceInf.GFaceData, sizeof(float) * GStepFaceLength);
+#else
+	StepVrClient->GetFaceData(GStepFaceData, GStepFaceLength);
+#endif
+}
 
