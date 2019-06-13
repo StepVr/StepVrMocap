@@ -67,12 +67,8 @@ public class StepVrDataStreamCore : ModuleRules
         if(Target.Platform == UnrealTargetPlatform.Win64 && IsValid)
         {
             PublicDefinitions.Add("WITH_STEPMAGIC=1");
+            PrivateDependencyModuleNames.Add("AJA_Corvid44");
 
-            string LibrariesPath = Path.Combine(LibPath, "lib", "x64");
-
-            PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "VirtualShootingMMap.lib"));
-            PublicDelayLoadDLLs.Add("VirtualShootingMMap.dll");
-            RuntimeDependencies.Add(new RuntimeDependency(Path.Combine(LibrariesPath, "VirtualShootingMMap.dll")));
         }
         else
         {

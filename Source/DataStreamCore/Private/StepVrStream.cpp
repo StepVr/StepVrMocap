@@ -9,7 +9,10 @@
 #include "Misc/CoreDelegates.h"
 
 #if WITH_STEPMAGIC
+#include "AJA_Corvid44.h"
 #include "VirtualShootingDll.h"
+#include "StepMagicThirdParty.h"
+#include "StepMagicGlobal.h"
 /**
  * 当前帧从StepMagic获取的数据
  */
@@ -429,14 +432,16 @@ void FStepMocapStream::SetServerInfo(const FMocapServerInfo& ServerInfo)
 	//初始化数据池
 	ReferenceCount = 0;
 
+	/**
+	 * 连接数据池，注册更新
+	 */
 #if WITH_STEPMAGIC
 	ConnectToStepMagic();
+	EngineBeginHandle = GStepMagicFrameBegin.AddRaw(this, &FStepMocapStream::EngineBegineFrame);
 #else
 	ConnectToServices();
-#endif
-
-	//注册更新
 	EngineBeginHandle = FCoreDelegates::OnBeginFrame.AddRaw(this, &FStepMocapStream::EngineBegineFrame);
+#endif
 }
 
 const FMocapServerInfo& FStepMocapStream::GetServerInfo()
@@ -561,17 +566,18 @@ void FStepMocapStream::ConnectToServices()
 }
 void FStepMocapStream::ConnectToStepMagic()
 {
-#if WITH_STEPMAGIC
-	StepMagicClient = MakeShareable(new CVirtualShootingDll);
-	bClientConnected = true;
 	bBodyConnected = true;
 	bHandConnected = true;
 	bFaceConnected = true;
-#endif
 }
 void FStepMocapStream::DisconnectToServer()
 {
+#if WITH_STEPMAGIC
+	GStepMagicFrameBegin.Remove(EngineBeginHandle);
+#else
 	FCoreDelegates::OnBeginFrame.Remove(EngineBeginHandle);
+#endif
+	
 
 	bClientConnected = false;
 	bBodyConnected = false;
@@ -585,37 +591,43 @@ void FStepMocapStream::DisconnectToServer()
 		StepVrClient.Reset();
 	}
 
-#if WITH_STEPMAGIC
-	if (StepMagicClient.IsValid())
-	{
-		StepMagicClient.Reset();
-	}
-#endif
-
 	FString Message = FString::Printf(TEXT("StepMocapStream Delete : %s"), *UsedServerInfo.ServerIP);
 	ShowMessage(Message);
 }
 void FStepMocapStream::EngineBegineFrame()
 {
+#if WITH_STEPMAGIC
+	bClientConnected = false;
+	static CVirtualShootingDll* GVirtualShootingDll = nullptr;
+	if (GVirtualShootingDll == nullptr)
+	{
+		FStepMagicThirdParty* StepMagicThirdParty = FAJA_Corvid44Module::GetStepMagicThirdParty();
+		if (StepMagicThirdParty)
+		{
+			GVirtualShootingDll = StepMagicThirdParty->GetVirtualShooting();
+		}
+	}
+
+	MultiTracker stMultiTracker;
+	GVirtualShootingDll->GetMultiTracker(stMultiTracker);
+
+	MFGKey Keys;
+	Keys.strIP = std::string(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP));
+	Keys.nPort = UsedServerInfo.ServerPort;
+	auto FindValue = stMultiTracker.mapMFG.find(Keys);
+	if (FindValue != stMultiTracker.mapMFG.end())
+	{
+		GCur_IP_Frame = FindValue->second;
+		bClientConnected = true;
+	}
+#endif
+
+	/**
+	 * 是否连接
+	 */
 	if (!bClientConnected)
 	{
 		return;
-	}
-	else
-	{
-#if WITH_STEPMAGIC
-		MultiTracker stMultiTracker;
-		StepMagicClient->GetMultiTracker(stMultiTracker);
-		MFGKey Keys;
-		Keys.strIP = std::string(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP));
-		Keys.nPort = UsedServerInfo.ServerPort;
-		auto FindValue = stMultiTracker.mapMFG.find(Keys);
-		if (FindValue != stMultiTracker.mapMFG.end())
-		{
-			GCur_IP_Frame = FindValue->second;
-		}
-
-#endif
 	}
 
 	//动捕数据

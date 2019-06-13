@@ -5,7 +5,7 @@
 #include "StepMocapDefine.h"
 #include "Animation/AnimNodeBase.h"
 
-class CVirtualShootingDll;
+
 class StepIK_Client;
 struct FStepVRPNChar;
 
@@ -49,7 +49,6 @@ private:
 	FMocapServerInfo UsedServerInfo;
 
 	TSharedPtr<StepIK_Client>	StepVrClient;
-	TSharedPtr<CVirtualShootingDll>	StepMagicClient;
 
 	int32 ReferenceCount = 0;
 

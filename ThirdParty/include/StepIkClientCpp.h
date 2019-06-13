@@ -6,29 +6,29 @@
 #endif // _STEP_DLL_EXPORT
 
 #include <string>
-
-struct V3
-{
-	float x;
-	float y;
-	float z;
-};
-
-struct V4
-{
-	float x;
-	float y;
-	float z;
-	float w;
-
-};
-
-struct transform
-{
-	V3 Location;
-	V4 Rotation;
-	V3 Scale;
-};
+#include "VirtualShootingDll.h"
+//struct V3
+//{
+//	float x;
+//	float y;
+//	float z;
+//};
+//
+//struct V4
+//{
+//	float x;
+//	float y;
+//	float z;
+//	float w;
+//
+//};
+//
+//struct transform
+//{
+//	V3 Location;
+//	V4 Rotation;
+//	V3 Scale;
+//};
 
 enum ServerStatus
 {
