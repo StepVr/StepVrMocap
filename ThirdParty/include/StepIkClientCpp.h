@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #ifdef _STEP_DLL_EXPORT
 #define STEPIK_DLL_API __declspec(dllexport)
 #else
@@ -6,29 +6,34 @@
 #endif // _STEP_DLL_EXPORT
 
 #include <string>
+#if WITH_STEPMAGIC
 #include "VirtualShootingDll.h"
-//struct V3
-//{
-//	float x;
-//	float y;
-//	float z;
-//};
-//
-//struct V4
-//{
-//	float x;
-//	float y;
-//	float z;
-//	float w;
-//
-//};
-//
-//struct transform
-//{
-//	V3 Location;
-//	V4 Rotation;
-//	V3 Scale;
-//};
+#else
+struct V3
+{
+	float x;
+	float y;
+	float z;
+};
+
+struct V4
+{
+	float x;
+	float y;
+	float z;
+	float w;
+
+};
+
+struct transform
+{
+	V3 Location;
+	V4 Rotation;
+	V3 Scale;
+};
+#endif
+
+
 
 enum ServerStatus
 {
@@ -69,7 +74,7 @@ enum RegisterStatus
 	REG_STATUS_SERVER_NOT_START = 0xffffff
 };
 class StepVR_UDP;
-typedef void(*FnBtnCallBack)(int iBtnEvent, int iLR);//£¨°´¼üÀàĞÍ£©iBtnEvent:1,Click;2,Hold;3,Release. £¨×óÓÒ£©iLR:0,Left;1,Right
+typedef void(*FnBtnCallBack)(int iBtnEvent, int iLR);//ï¼ˆæŒ‰é”®ç±»å‹ï¼‰iBtnEvent:1,Click;2,Hold;3,Release. ï¼ˆå·¦å³ï¼‰iLR:0,Left;1,Right
 class STEPIK_DLL_API StepIK_Client
 {
 public:
@@ -85,15 +90,15 @@ public:
 	int StopData();
 	StepVR_UDP * m_UDPdev;
 
-	//»ñµÃÊÖÖ¸¸÷¹Ø½Ú×ËÌ¬µÄ·½·¨ 1. GloEnable(true);GloSetDir(i_dir);  2. ÔÚÖ÷Ñ­»·µ÷ÓÃGetGloveData
-	void GetGloveData(V4 * data); //32¸ö4ÔªÊı£¨Ç°16¸öÎª£º×óÊÖÊÖÕÆ£¬×óÊÖÄ´Ö¸´ÓÄÚÏòÍâÈı¸ö¹Ø½Ú£¬Ê³Ö¸Èı¸ö¹Ø½Ú£¬ÖĞÖ¸Èı¹Ø½Ú£¬ÎŞÃûÖ¸Èı¹Ø½Ú£¬Ğ¡Ö¸Èı¹Ø½Ú¡£ºó16¸öÎªÓÒÊÖµÄ£¬Ë³ĞòºÍ×óÊÖÏàÍ¬£©
-	void GloEnable(bool enable);//¿ªÆô¡¢¹Ø±ÕÊÖÌ×Êı¾İ
-	void GloSetDir(int i_dir);//ÉèÖÃº½Ïò½Ç
-	void GloCaliFive(int iLR);//ÎåÖ¸Ğ£×¼£¨0×ó1ÓÒ£©
-	void GloCaliStatic(int iLR);//¾²Ì¬Ğ£×¼
-	void GloCaliDynamic(int iLR);//¶¯Ì¬Ğ£×¼
-	void GloSetBtnCallBack(FnBtnCallBack pFn);//°´¼ü»Øµ÷º¯Êı£¬¼ûÉÏ·½º¯ÊıÉùÃ÷
-	void GloSetRotType(int iType);//ÉèÖÃÊä³öµÄ×ËÌ¬£¨0 Local£¬1 Global£©Ä¬ÈÏÊÇ0
+	//è·å¾—æ‰‹æŒ‡å„å…³èŠ‚å§¿æ€çš„æ–¹æ³• 1. GloEnable(true);GloSetDir(i_dir);  2. åœ¨ä¸»å¾ªç¯è°ƒç”¨GetGloveData
+	void GetGloveData(V4 * data); //32ä¸ª4å…ƒæ•°ï¼ˆå‰16ä¸ªä¸ºï¼šå·¦æ‰‹æ‰‹æŒï¼Œå·¦æ‰‹æ‹‡æŒ‡ä»å†…å‘å¤–ä¸‰ä¸ªå…³èŠ‚ï¼Œé£ŸæŒ‡ä¸‰ä¸ªå…³èŠ‚ï¼Œä¸­æŒ‡ä¸‰å…³èŠ‚ï¼Œæ— åæŒ‡ä¸‰å…³èŠ‚ï¼Œå°æŒ‡ä¸‰å…³èŠ‚ã€‚å16ä¸ªä¸ºå³æ‰‹çš„ï¼Œé¡ºåºå’Œå·¦æ‰‹ç›¸åŒï¼‰
+	void GloEnable(bool enable);//å¼€å¯ã€å…³é—­æ‰‹å¥—æ•°æ®
+	void GloSetDir(int i_dir);//è®¾ç½®èˆªå‘è§’
+	void GloCaliFive(int iLR);//äº”æŒ‡æ ¡å‡†ï¼ˆ0å·¦1å³ï¼‰
+	void GloCaliStatic(int iLR);//é™æ€æ ¡å‡†
+	void GloCaliDynamic(int iLR);//åŠ¨æ€æ ¡å‡†
+	void GloSetBtnCallBack(FnBtnCallBack pFn);//æŒ‰é”®å›è°ƒå‡½æ•°ï¼Œè§ä¸Šæ–¹å‡½æ•°å£°æ˜
+	void GloSetRotType(int iType);//è®¾ç½®è¾“å‡ºçš„å§¿æ€ï¼ˆ0 Localï¼Œ1 Globalï¼‰é»˜è®¤æ˜¯0
 
 	void GetFaceData(float* fFaceData, int & iLen);
 

@@ -479,6 +479,39 @@ void FStepMocapStream::GetBonesTransform_Face(TMap<FString, float>& BonesData)
 	}
 }
 
+bool FStepMocapStream::IsBodyConnect()
+{
+	bool IsConnect = false;
+#if WITH_STEPMAGIC
+	IsConnect = true;
+#else
+	IsConnect = StepVrClient->HasBodyData();
+#endif
+	return IsConnect;
+}
+
+bool FStepMocapStream::IsHandConnect()
+{
+	bool IsConnect = false;
+#if WITH_STEPMAGIC
+	IsConnect = true;
+#else
+	IsConnect = StepVrClient->HasGloveData();
+#endif
+	return IsConnect;
+}
+
+bool FStepMocapStream::IsFaceConnect()
+{
+	bool IsConnect = false;
+#if WITH_STEPMAGIC
+	IsConnect = true;
+#else
+	IsConnect = StepVrClient->HasFaceData();
+#endif
+	return IsConnect;
+}
+
 void FStepMocapStream::ConnectToServices()
 {
 	//创建连接
@@ -503,72 +536,16 @@ void FStepMocapStream::ConnectToServices()
 	FString Message = "";
 
 	//连接动捕
-	do 
-	{
-		if (StepVrClient->GetServerStatus() > 0)
-		{
-			Message = TEXT("Mocap ServerStatus Error");
-			break;
-		}
-
-		StepVrClient->startData();
-		
-
-		if (StepVrClient->HasBodyData())
-		{
-			bBodyConnected = true;
-			Message = TEXT("Mocap Data Success");
-		}
-		else
-		{
-			Message = TEXT("Mocap Data Error");
-		}
-
-		bBodyConnected = true;
-	} while (0);
-	ShowMessage(Message);
+	StepVrClient->startData();
 
 	//连接手套
-	do 
-	{
-		StepVrClient->GloEnable(true);
-		StepVrClient->GloSetDir(135);
-		StepVrClient->GloSetRotType(1);
-
-		if (StepVrClient->HasGloveData())
-		{
-			bHandConnected = true;
-			Message = TEXT("Glove Data Success");
-		}
-		else
-		{
-			Message = TEXT("Glove Data Error");
-		}
-		bHandConnected = true;
-	} while (0);
-	ShowMessage(Message);
+	StepVrClient->GloEnable(true);
+	StepVrClient->GloSetRotType(1);
 
 	//连接面捕
-	do 
-	{
-		if (StepVrClient->HasFaceData())
-		{
-			bFaceConnected = true;
-			Message = TEXT("Face Data Success");
-		}
-		else
-		{
-			Message = TEXT("Face Data Error");
-		}
-		bFaceConnected = true;
-	} while (0);
-	ShowMessage(Message);
 }
 void FStepMocapStream::ConnectToStepMagic()
 {
-	bBodyConnected = true;
-	bHandConnected = true;
-	bFaceConnected = true;
 }
 void FStepMocapStream::DisconnectToServer()
 {
@@ -580,9 +557,6 @@ void FStepMocapStream::DisconnectToServer()
 	
 
 	bClientConnected = false;
-	bBodyConnected = false;
-	bHandConnected = false;
-	bFaceConnected = false;
 
 	if (StepVrClient.IsValid())
 	{
@@ -596,6 +570,9 @@ void FStepMocapStream::DisconnectToServer()
 }
 void FStepMocapStream::EngineBegineFrame()
 {
+	/**
+	* 影视需要刷新数据
+	*/
 #if WITH_STEPMAGIC
 	bClientConnected = false;
 	static CVirtualShootingDll* GVirtualShootingDll = nullptr;
@@ -631,7 +608,7 @@ void FStepMocapStream::EngineBegineFrame()
 	}
 
 	//动捕数据
-	if (bBodyConnected)
+	if (IsBodyConnect())
 	{
 		UpdateFrameData_Body();
 		ConvertToUE(GStepMocapData, UEMocapData);
@@ -657,7 +634,7 @@ void FStepMocapStream::EngineBegineFrame()
 	//手套数据
 	do 
 	{
-		if (!bHandConnected)
+		if (!IsBodyConnect())
 		{
 			break;
 		}
@@ -700,7 +677,7 @@ void FStepMocapStream::EngineBegineFrame()
 
 
 
-	if (bFaceConnected)
+	if (IsFaceConnect())
 	{
 		UpdateFrameData_Face();
 

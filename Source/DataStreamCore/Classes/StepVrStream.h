@@ -30,9 +30,9 @@ public:
 	void GetBonesTransform_Face(TMap<FString,float>& BonesData);
 
 	bool IsConnected()		{ return bClientConnected; }
-	bool IsConnectedBody()	{ return bBodyConnected; }
-	bool IsConnectedHand()	{ return bHandConnected; }
-	bool IsConnectedFace()	{ return bFaceConnected; }
+	bool IsBodyConnect();
+	bool IsHandConnect();
+	bool IsFaceConnect();
 
 protected:
 	void EngineBegineFrame();
@@ -64,9 +64,6 @@ private:
 	FDelegateHandle	EngineBeginHandle;
 
 	bool bClientConnected = false;
-	bool bBodyConnected = false;
-	bool bHandConnected = false;
-	bool bFaceConnected = false;
 };
 
 class STEPVRDATASTREAMCORE_API FStepDataToSkeletonBinding

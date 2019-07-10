@@ -1,7 +1,7 @@
 ﻿{
   "FileVersion": 3,
   "Version": 4,
-  "VersionName": "4.001",
+  "VersionName": "4.0.0.2",
   "FriendlyName": "StepMocap",
   "Description": "Step Streamer Node. This plug-in allows the user to stream in the Step skeleton into Unreal Engine 4",
   "Category": "Step",
