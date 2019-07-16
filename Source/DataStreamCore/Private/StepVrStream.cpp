@@ -517,23 +517,28 @@ void FStepMocapStream::ConnectToServices()
 	//创建连接
 	StepVrClient = MakeShareable(new StepIK_Client());
 	
-
+	bClientConnected = false;
 	int32 Flag = StepVrClient->Connect(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP), UsedServerInfo.ServerPort);
-	bClientConnected = Flag == 0;
-
-	if (bClientConnected)
+	
+	if (Flag == STATUS_NORMAL_ONLINE)
 	{
-		FString Message = FString::Printf(TEXT("StepVrMocap Connect %s Success"), *UsedServerInfo.ServerIP);
+		bClientConnected = true;
+		FString Message = FString::Printf(TEXT("StepVrMocap Connect %s Success , Type Normal"), *UsedServerInfo.ServerIP);
 		ShowMessage(Message);
 	}
-	else
+	if (Flag == STATUS_REPLAY)
+	{
+		bClientConnected = true;
+		FString Message = FString::Printf(TEXT("StepVrMocap Connect %s Success , Type Replay"), *UsedServerInfo.ServerIP);
+		ShowMessage(Message);
+	}
+
+	if (bClientConnected == false)
 	{
 		FString Message = FString::Printf(TEXT("StepVrMocap Connect %s Error"), *UsedServerInfo.ServerIP);
 		ShowMessage(Message);
 		return;
 	}
-
-	FString Message = "";
 
 	//连接动捕
 	StepVrClient->startData();
