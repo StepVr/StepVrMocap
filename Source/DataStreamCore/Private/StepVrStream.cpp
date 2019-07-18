@@ -7,7 +7,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/MorphTarget.h"
 #include "Misc/CoreDelegates.h"
-#include "Kismet/GameplayStatics.h"
+
 
 #if WITH_STEPMAGIC
 #include "AJA_Corvid44.h"
@@ -568,7 +568,7 @@ void FStepMocapStream::DisconnectToServer()
 }
 void FStepMocapStream::EngineBegineFrame()
 {
-	if (CheckConnectToServer() == false)
+	if (!CheckConnectToServer())
 	{
 		return;
 	}
@@ -726,26 +726,27 @@ bool FStepMocapStream::CheckConnectToServer()
 #if WITH_STEPMAGIC
 	IsSuccess = UpdateStepMagicData();
 #else
-	if (StepVrClient->IsConnected())
-	{
-		IsSuccess = true;
-	}
-	else
-	{
-		static float GDelayTime = 0.f;
-		GDelayTime += GWorld ? UGameplayStatics::GetWorldDeltaSeconds(GWorld) : 0.015f;
-		if (GDelayTime > 3)
-		{
-			GDelayTime = 0.f;
-			FString Message = FString::Printf(
-				TEXT("StepVrMocap Error %d, ReConnect...%s"), 
-				StepVrClient->GetServerStatus(),
-				*UsedServerInfo.ServerIP);
-			ShowMessage(Message);
+	IsSuccess = StepVrClient->IsConnected();
+	//if (StepVrClient->IsConnected())
+	//{
+	//	IsSuccess = true;
+	//}
+	//else
+	//{
+	//	static float GDelayTime = 0.f;
+	//	GDelayTime += GWorld ? UGameplayStatics::GetWorldDeltaSeconds(GWorld) : 0.015f;
+	//	if (GDelayTime > 3)
+	//	{
+	//		GDelayTime = 0.f;
+	//		FString Message = FString::Printf(
+	//			TEXT("StepVrMocap Error %d, ReConnect...%s"), 
+	//			StepVrClient->GetServerStatus(),
+	//			*UsedServerInfo.ServerIP);
+	//		ShowMessage(Message);
 
-			ConnectToServices();
-		}
-	}
+	//		ConnectToServices();
+	//	}
+	//}
 #endif
 
 	return IsSuccess;
