@@ -52,8 +52,26 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	UPROPERTY(EditAnywhere, Category=Server,meta=(PinShownByDefault))
 	int32 PortNumber = 9516;
 
+	//UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
+	//bool ApplyStepScale = false;
+
+	/**
+	 * 是否开启身体捕捉
+	 */
 	UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
-	bool ApplyStepScale = false;
+	bool EnableBody = true;
+
+	/**
+	* 是否开启手部捕捉
+	*/
+	UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
+	bool EnableHand = false;
+
+	/**
+	* 是否开启面部捕捉
+	*/
+	UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
+	bool EnableFace = false;
 
 public:	
 

@@ -128,26 +128,24 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 	InPose.Update(Context);
 	EvaluateGraphExposedInputs.Execute(Context);
 
-	//更新数据
-	do 
+	if (mSkeletonBinding.IsConnected())
 	{
-		if (!mSkeletonBinding.IsConnected())
-		{
-			break;
-		}
-		if (mSkeletonBinding.IsBodyBound())
+		//身体数据
+		if (EnableBody && mSkeletonBinding.IsBodyBound())
 		{
 			mSkeletonBinding.UpdateBodyFrameData(BonesData);
 		}
-		if (mSkeletonBinding.IsHandBound())
+		//手部数据
+		if (EnableHand && mSkeletonBinding.IsHandBound())
 		{
 			mSkeletonBinding.UpdateHandFrameData(HandBonesData);
 		}
-		if (mSkeletonBinding.IsFaceBound())
+		//面部数据
+		if (EnableFace && mSkeletonBinding.IsFaceBound())
 		{
 			mSkeletonBinding.UpdateFaceFrameData(FaceMorphTargetData);
 		}
-	} while (0);
+	}
 }
 
 //FGraphEventRef oExecOnGameThread(TFunction<void()> funcLambda)
@@ -164,7 +162,7 @@ void FAnimNode_StepDataStream::Evaluate_AnyThread(FPoseContext& Output)
 	//更新动捕姿态
 	do 
 	{
-		if (!mSkeletonBinding.IsBodyBound())
+		if ((!EnableBody) || (!mSkeletonBinding.IsBodyBound()))
 		{
 			break;
 		}
@@ -199,8 +197,7 @@ void FAnimNode_StepDataStream::Evaluate_AnyThread(FPoseContext& Output)
 
 	//更新手部骨骼姿态
 	do{
-		
-		if (!mSkeletonBinding.IsHandBound())
+		if ((!EnableHand) || (!mSkeletonBinding.IsHandBound()))
 		{
 			break;
 		}
@@ -232,7 +229,7 @@ void FAnimNode_StepDataStream::Evaluate_AnyThread(FPoseContext& Output)
 	//更新面部捕捉
 	do 
 	{
-		if (!mSkeletonBinding.IsFaceBound())
+		if ((!EnableFace) || (!mSkeletonBinding.IsFaceBound()))
 		{
 			break;
 		}

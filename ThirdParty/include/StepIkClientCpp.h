@@ -1,4 +1,4 @@
-ï»¿#pragma once
+#pragma once
 #ifdef _STEP_DLL_EXPORT
 #define STEPIK_DLL_API __declspec(dllexport)
 #else
@@ -6,9 +6,7 @@
 #endif // _STEP_DLL_EXPORT
 
 #include <string>
-#if WITH_STEPMAGIC
-#include "VirtualShootingDll.h"
-#else
+
 struct V3
 {
 	float x;
@@ -31,15 +29,12 @@ struct transform
 	V4 Rotation;
 	V3 Scale;
 };
-#endif
-
-
 
 enum ServerStatus
 {
-	STATUS_NORMAL_ONLINE = 0,
-	STATUS_RECORDING = 1,
-	STATUS_REPLAY = 2,
+	STATUS_NORMAL_ONLINE = 0,//runStatus
+	STATUS_RECORDING = 1,//runStatus
+	STATUS_REPLAY = 2,//runStatus
 	FILE_NOT_FIND = -1,
 	FILE_OPEN_ERROR = -2,
 	STATUS_NOT_IN_NORMAL_MODE = -3,
@@ -47,75 +42,115 @@ enum ServerStatus
 	FILE_TRACKER_COUNT_ERROR = -5,
 	FILE_ALREADY_EXIST = -6,
 	STATUS_NOT_SUPPORT_TYPE = -7,
-	STATUS_SERVER_INTERNAL_ERROR = -8,
+	STATUS_SERVER_INTERNAL_ERROR = -8,//runStatus
 	STATUS_CONNECT_MMAP_ERROR = -9,
 	STATUS_NOT_REG = -10,
-	STATUS_INVALID_REG = -11,
-	STATUS_SERVICE_NORESPONSE = 0xffff,
+	STATUS_INVALID_REG = -11,//runStatus
+	STATUS_SERVICE_NORESPONSE = 0xffff,//runStatus
 	STATUS_NOTSEND_UNKNOW = 0xffffff
 };
 enum TPoseStatus
 {
-	TPOSE_STATUS_SUCCESS = 0,
-	TPOSE_VRIK_NOT_INITIATED = -1,
-	TPOSE_VRIK_HEAD_NOT_DATA = -2,
-	TPOSE_STATUS_DOINING = 1,
-	TPOSE_STATUS_NOT_SEND_TPOSE = 0xffffff
+	TPOSE_STATUS_SUCCESS = 0,//µÄ
+	TPOSE_VRIK_NOT_INITIATED = -1,//
+	TPOSE_VRIK_HEAD_NOT_DATA = -2,//
+	//TPOSE_TEST = 3,//
+	//TPOSE_STATUS_DOINING = 0xffffffd,//
+	TPOSE_SERVICE_NORESPONSE = 0xffff,//
+	TPOSE_STATUS_NOT_SEND_TPOSE = 0xfffffff//
 };
-enum RegisterStatus
+enum ERegStatus
 {
-	REG_STATUS_OK = 0,
-	REG_STATUS_REGCODE_INVALID_FORMAT = -1,
-	REG_STATUS_WRONG_REGCODE = -2,
-	REG_STATUS_ALREADY_USED = -3,
-	REG_STATUS_COMMUNICATION_ERROR = -4,
-	REG_STATUS_NOT_REG = -10,
-	REG_STATUS_INVALID_REG = -11,
-	REG_STATUS_SERVER_NOT_START = 0xffffff
+	REG_STATUS_OK = 0,//×¢²á³É¹¦
+	REG_STATUS_REGCODE_INVALID_FORMAT = -1,//ÎŞĞ§×¢²áÂë¸ñÊ½
+	REG_STATUS_WRONG_REGCODE = -2,//´íÎó×¢²áÂë
+	REG_STATUS_ALREADY_USED = -3,//×¢²áÂëÒÑÊ¹ÓÃ
+	REG_STATUS_COMMUNICATION_ERROR = -4,//ÍøÂçÁ¬½ÓÊ§°Ü
+	REG_STATUS_NOT_REG = -10,//Î´×¢²á
+	REG_STATUS_INVALID_REG = -11,//ÎŞĞ§×¢²áĞÅÏ¢
+	//STATUS_SERVICE_NORESPONSE = 0xffff,
+	//REG_STATUS_SERVER_NOT_START = 0xffffff
 };
+
+enum ConnectReturnValue
+{
+	CRV_NORMAL_ONLINE = 0,//Õı³£
+	CRV_RECORDING = 1,//Â¼ÊıÄ£Ê½
+	CRV_REPLAY = 2,//»Ø·ÅÄ£Ê½
+	CRV_SERVER_INTERNAL_ERROR = -8,//IKËã·¨³õÊ¼»¯Ê§°Ü
+	CRV_INVALID_REG = -11,//Î´×¢²á
+	CRV_SERVICE_NORESPONSE = 0xffff//·şÎñÎŞ»ØÓ¦
+};
+
+struct MacArmData
+{
+	int id;//1±íÊ¾×óÊÖÊı¾İ, 2±íÊ¾ÓÒÊÖÊı¾İ£¬0±íÊ¾ÎŞĞ§Êı¾İ
+	float angle[7];//7¸öÖáµÄ½Ç¶ÈÖµ£¬´ÓÄÚÏòÍâ
+	float speed[7];//7¸öÖáµÄËÙ¶ÈÖµ£¬ÓëÉÏÃæ¶ÔÓ¦
+	unsigned int timeStamps;//Ê±¼ä´Á
+	float extension[5];//5¸öÀ©Õ¹Öµ
+};
+
+
 class StepVR_UDP;
-typedef void(*FnBtnCallBack)(int iBtnEvent, int iLR);//ï¼ˆæŒ‰é”®ç±»å‹ï¼‰iBtnEvent:1,Click;2,Hold;3,Release. ï¼ˆå·¦å³ï¼‰iLR:0,Left;1,Right
+typedef void(*FnBtnCallBack)(int iBtnEvent, int iLR);//£¨°´¼üÀàĞÍ£©iBtnEvent:1,Click;2,Hold;3,Release. £¨×óÓÒ£©iLR:0,Left;1,Right
 class STEPIK_DLL_API StepIK_Client
 {
+	StepVR_UDP * m_UDPdev;
 public:
 	StepIK_Client();
 	~StepIK_Client();
-	int Connect(char * szServerIP, int serverPort);//port: 9516
-	int startData();
-	int TPose();
-	void getData(transform * data);
-	int GetServerStatus();
-	int GetTPoseStatus();
-	int GetRegStatus();
-	int StopData();
-	StepVR_UDP * m_UDPdev;
+	int Connect(char * szServerIP, int serverPort);//port: 9516..  ·µ»ØÖµ£ººöÂÔÆäÖµ
+	void DisConnect();
+	bool IsConnected();
 
-	//è·å¾—æ‰‹æŒ‡å„å…³èŠ‚å§¿æ€çš„æ–¹æ³• 1. GloEnable(true);GloSetDir(i_dir);  2. åœ¨ä¸»å¾ªç¯è°ƒç”¨GetGloveData
-	void GetGloveData(V4 * data); //32ä¸ª4å…ƒæ•°ï¼ˆå‰16ä¸ªä¸ºï¼šå·¦æ‰‹æ‰‹æŒï¼Œå·¦æ‰‹æ‹‡æŒ‡ä»å†…å‘å¤–ä¸‰ä¸ªå…³èŠ‚ï¼Œé£ŸæŒ‡ä¸‰ä¸ªå…³èŠ‚ï¼Œä¸­æŒ‡ä¸‰å…³èŠ‚ï¼Œæ— åæŒ‡ä¸‰å…³èŠ‚ï¼Œå°æŒ‡ä¸‰å…³èŠ‚ã€‚å16ä¸ªä¸ºå³æ‰‹çš„ï¼Œé¡ºåºå’Œå·¦æ‰‹ç›¸åŒï¼‰
-	void GloEnable(bool enable);//å¼€å¯ã€å…³é—­æ‰‹å¥—æ•°æ®
-	void GloSetDir(int i_dir);//è®¾ç½®èˆªå‘è§’
-	void GloCaliFive(int iLR);//äº”æŒ‡æ ¡å‡†ï¼ˆ0å·¦1å³ï¼‰
-	void GloCaliStatic(int iLR);//é™æ€æ ¡å‡†
-	void GloCaliDynamic(int iLR);//åŠ¨æ€æ ¡å‡†
-	void GloSetBtnCallBack(FnBtnCallBack pFn);//æŒ‰é”®å›è°ƒå‡½æ•°ï¼Œè§ä¸Šæ–¹å‡½æ•°å£°æ˜
-	void GloSetRotType(int iType);//è®¾ç½®è¾“å‡ºçš„å§¿æ€ï¼ˆ0 Localï¼Œ1 Globalï¼‰é»˜è®¤æ˜¯0
+	int startData();//´óÓÚ0±íÊ¾³É¹¦
+	int StopData();//´óÓÚ0±íÊ¾³É¹¦
+	int TPose();//·µ»ØÖµ£º²Î¿¼TPoseStatus
+	
+	int GetServerStatus();//·µ»ØÖµ£º²Î¿¼ConnectReturnValue
+	int GetTPoseStatus();//·µ»ØÖµ£º²Î¿¼TPoseStatus
+	int GetRegStatus();//·µ»ØÖµ£º²Î¿¼RegisterStatus
+	
+
+	void getData(transform * data);//22¸ö¹Ç÷ÀÖµ
+	
+								   //»ñµÃÊÖÖ¸¸÷¹Ø½Ú×ËÌ¬µÄ·½·¨ 1. GloEnable(true);GloSetDir(i_dir);  2. ÔÚÖ÷Ñ­»·µ÷ÓÃGetGloveData
+	void GetGloveData(V4 * data); //32¸ö4ÔªÊı£¨Ç°16¸öÎª£º×óÊÖÊÖÕÆ£¬×óÊÖÄ´Ö¸´ÓÄÚÏòÍâÈı¸ö¹Ø½Ú£¬Ê³Ö¸Èı¸ö¹Ø½Ú£¬ÖĞÖ¸Èı¹Ø½Ú£¬ÎŞÃûÖ¸Èı¹Ø½Ú£¬Ğ¡Ö¸Èı¹Ø½Ú¡£ºó16¸öÎªÓÒÊÖµÄ£¬Ë³ĞòºÍ×óÊÖÏàÍ¬£©
+	void GloEnable(bool enable);//¿ªÆô¡¢¹Ø±ÕÊÖÌ×Êı¾İ
+	void GloSetDir(int i_dir);//ÉèÖÃº½Ïò½Ç
+	void GloCaliFive(int iLR);//ÎåÖ¸Ğ£×¼£¨0×ó1ÓÒ£©
+	void GloCaliStatic(int iLR);//¾²Ì¬Ğ£×¼
+	void GloCaliDynamic(int iLR);//¶¯Ì¬Ğ£×¼
+	void GloSetBtnCallBack(FnBtnCallBack pFn);//°´¼ü»Øµ÷º¯Êı£¬¼ûÉÏ·½º¯ÊıÉùÃ÷
+	
+	//deprecated.
+	void GloSetRotType(int iType);//ÒÑÊ§Ğ§£¬Ö»Êä³öGlobal×ËÌ¬¡£//ÉèÖÃÊä³öµÄ×ËÌ¬£¨0 Local£¬1 Global£©Ä¬ÈÏÊÇ0
+	
+	void GetHandPos(V3 * data);//ÔÚ´¿ÊÖÄ£Ê½ÏÂÓÃÓÚ»ñµÃÁ½Ö»ÊÖµÄÎ»ÖÃ
 
 	void GetFaceData(float* fFaceData, int & iLen);
+
+	void GetMacArmData(MacArmData * data);//ÆßÖá»úĞµ±Û×¨ÓÃ,·µ»ØÁ½¸öMacArmData
 
 	bool HasBodyData();
 	bool HasGloveData();
 	bool HasFaceData();
 };
 
+
 extern "C" {
 	STEPIK_DLL_API int dllInit(char * szServerIP, int serverPort);
+	STEPIK_DLL_API void DisConnect();
 	STEPIK_DLL_API int startData();
+	STEPIK_DLL_API int StopData();
 	STEPIK_DLL_API int TPose();
-	STEPIK_DLL_API void getData(transform * data);
-	
+		
+	STEPIK_DLL_API int GetServerStatus();
 	STEPIK_DLL_API int GetTPoseStatus();
 	STEPIK_DLL_API int GetRegStatus();
-	STEPIK_DLL_API int Stop();
+
+	STEPIK_DLL_API void getData(transform * data);
 	
 	STEPIK_DLL_API void GetGloveData(V4 * data);
 	STEPIK_DLL_API void GloEnable(bool enable);
@@ -126,7 +161,11 @@ extern "C" {
 	STEPIK_DLL_API void GloSetBtnCallBack(FnBtnCallBack pFn);
 	STEPIK_DLL_API void GloSetRotType(int iType);
 
+	STEPIK_DLL_API void GetHandPos(V3 * data);
+
 	STEPIK_DLL_API void GetFaceData(float* fFaceData, int & iLen);
+
+	STEPIK_DLL_API void GetMacArmData(MacArmData * data);
 
 	STEPIK_DLL_API bool HasBodyData();
 	STEPIK_DLL_API bool HasGloveData();

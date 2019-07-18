@@ -29,17 +29,21 @@ public:
 	void GetBonesTransform_Hand(TArray<FRotator>& BonesData);
 	void GetBonesTransform_Face(TMap<FString,float>& BonesData);
 
-	bool IsConnected()		{ return bClientConnected; }
+	bool IsConnected();
 	bool IsBodyConnect();
 	bool IsHandConnect();
 	bool IsFaceConnect();
 
 protected:
 	void EngineBegineFrame();
+#if WITH_STEPMAGIC
+	bool UpdateStepMagicData();
+#endif
 	void UpdateFrameData_Body();
 	void UpdateFrameData_Hand();
 	void UpdateFrameData_Face();
 
+	bool CheckConnectToServer();
 	void ConnectToServices();
 	void ConnectToStepMagic();
 	void DisconnectToServer();
@@ -62,8 +66,6 @@ private:
 	TMap<FString,float> CacheFaceFrameData;
 
 	FDelegateHandle	EngineBeginHandle;
-
-	bool bClientConnected = false;
 };
 
 class STEPVRDATASTREAMCORE_API FStepDataToSkeletonBinding

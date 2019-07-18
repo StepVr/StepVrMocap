@@ -7,6 +7,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/MorphTarget.h"
 #include "Misc/CoreDelegates.h"
+#include "Kismet/GameplayStatics.h"
 
 #if WITH_STEPMAGIC
 #include "AJA_Corvid44.h"
@@ -18,6 +19,7 @@
  */
 static MFGValue GCur_IP_Frame;
 #endif
+
 
 /**
  * 当前帧从Service获取的数据
@@ -479,6 +481,18 @@ void FStepMocapStream::GetBonesTransform_Face(TMap<FString, float>& BonesData)
 	}
 }
 
+bool FStepMocapStream::IsConnected()
+{
+	bool IsConnect = false;
+
+#if WITH_STEPMAGIC
+	IsConnect = true;
+#else
+	IsConnect = StepVrClient->IsConnected();
+#endif
+	return IsConnect;
+}
+
 bool FStepMocapStream::IsBodyConnect()
 {
 	bool IsConnect = false;
@@ -515,39 +529,21 @@ bool FStepMocapStream::IsFaceConnect()
 void FStepMocapStream::ConnectToServices()
 {
 	//创建连接
-	StepVrClient = MakeShareable(new StepIK_Client());
-	
-	bClientConnected = false;
-	int32 Flag = StepVrClient->Connect(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP), UsedServerInfo.ServerPort);
-	
-	if (Flag == STATUS_NORMAL_ONLINE)
+	if (!StepVrClient.IsValid())
 	{
-		bClientConnected = true;
-		FString Message = FString::Printf(TEXT("StepVrMocap Connect %s Success , Type Normal"), *UsedServerInfo.ServerIP);
-		ShowMessage(Message);
-	}
-	if (Flag == STATUS_REPLAY)
-	{
-		bClientConnected = true;
-		FString Message = FString::Printf(TEXT("StepVrMocap Connect %s Success , Type Replay"), *UsedServerInfo.ServerIP);
-		ShowMessage(Message);
+		StepVrClient = MakeShareable(new StepIK_Client());
 	}
 
-	if (bClientConnected == false)
-	{
-		FString Message = FString::Printf(TEXT("StepVrMocap Connect %s Error"), *UsedServerInfo.ServerIP);
-		ShowMessage(Message);
-		return;
-	}
-
+	StepVrClient->Connect(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP), UsedServerInfo.ServerPort);
+	
 	//连接动捕
 	StepVrClient->startData();
 
 	//连接手套
 	StepVrClient->GloEnable(true);
-	StepVrClient->GloSetRotType(1);
 
-	//连接面捕
+	FString Message = FString::Printf(TEXT("StepVrMocap Connect %s"), *UsedServerInfo.ServerIP);
+	ShowMessage(Message);
 }
 void FStepMocapStream::ConnectToStepMagic()
 {
@@ -559,9 +555,6 @@ void FStepMocapStream::DisconnectToServer()
 #else
 	FCoreDelegates::OnBeginFrame.Remove(EngineBeginHandle);
 #endif
-	
-
-	bClientConnected = false;
 
 	if (StepVrClient.IsValid())
 	{
@@ -575,39 +568,7 @@ void FStepMocapStream::DisconnectToServer()
 }
 void FStepMocapStream::EngineBegineFrame()
 {
-	/**
-	* 影视需要刷新数据
-	*/
-#if WITH_STEPMAGIC
-	bClientConnected = false;
-	static CVirtualShootingDll* GVirtualShootingDll = nullptr;
-	if (GVirtualShootingDll == nullptr)
-	{
-		FStepMagicThirdParty* StepMagicThirdParty = FAJA_Corvid44Module::GetStepMagicThirdParty();
-		if (StepMagicThirdParty)
-		{
-			GVirtualShootingDll = StepMagicThirdParty->GetVirtualShooting();
-		}
-	}
-
-	MultiTracker stMultiTracker;
-	GVirtualShootingDll->GetMultiTracker(stMultiTracker);
-
-	MFGKey Keys;
-	Keys.strIP = std::string(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP));
-	Keys.nPort = UsedServerInfo.ServerPort;
-	auto FindValue = stMultiTracker.mapMFG.find(Keys);
-	if (FindValue != stMultiTracker.mapMFG.end())
-	{
-		GCur_IP_Frame = FindValue->second;
-		bClientConnected = true;
-	}
-#endif
-
-	/**
-	 * 是否连接
-	 */
-	if (!bClientConnected)
+	if (CheckConnectToServer() == false)
 	{
 		return;
 	}
@@ -639,7 +600,7 @@ void FStepMocapStream::EngineBegineFrame()
 	//手套数据
 	do 
 	{
-		if (!IsBodyConnect())
+		if (!IsHandConnect())
 		{
 			break;
 		}
@@ -699,6 +660,37 @@ void FStepMocapStream::EngineBegineFrame()
 	}
 }
 
+#if WITH_STEPMAGIC
+bool FStepMocapStream::UpdateStepMagicData()
+{
+	bool IsSuccess = false;
+	CVirtualShootingDll* GVirtualShootingDll = nullptr;
+	if (GVirtualShootingDll == nullptr)
+	{
+		FStepMagicThirdParty* StepMagicThirdParty = FAJA_Corvid44Module::GetStepMagicThirdParty();
+		if (StepMagicThirdParty)
+		{
+			GVirtualShootingDll = StepMagicThirdParty->GetVirtualShooting();
+		}
+	}
+
+	MultiTracker stMultiTracker;
+	GVirtualShootingDll->GetMultiTracker(stMultiTracker);
+
+	MFGKey Keys;
+	Keys.strIP = std::string(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP));
+	Keys.nPort = UsedServerInfo.ServerPort;
+	auto FindValue = stMultiTracker.mapMFG.find(Keys);
+	if (FindValue != stMultiTracker.mapMFG.end())
+	{
+		GCur_IP_Frame = FindValue->second;
+		IsSuccess = true;
+	}
+
+	return IsSuccess;
+}
+#endif
+
 void FStepMocapStream::UpdateFrameData_Body()
 {
 #if WITH_STEPMAGIC
@@ -725,5 +717,37 @@ void FStepMocapStream::UpdateFrameData_Face()
 #else
 	StepVrClient->GetFaceData(GStepFaceData, GStepFaceLength);
 #endif
+}
+
+bool FStepMocapStream::CheckConnectToServer()
+{
+	bool IsSuccess = false;
+
+#if WITH_STEPMAGIC
+	IsSuccess = UpdateStepMagicData();
+#else
+	if (StepVrClient->IsConnected())
+	{
+		IsSuccess = true;
+	}
+	else
+	{
+		static float GDelayTime = 0.f;
+		GDelayTime += GWorld ? UGameplayStatics::GetWorldDeltaSeconds(GWorld) : 0.015f;
+		if (GDelayTime > 3)
+		{
+			GDelayTime = 0.f;
+			FString Message = FString::Printf(
+				TEXT("StepVrMocap Error %d, ReConnect...%s"), 
+				StepVrClient->GetServerStatus(),
+				*UsedServerInfo.ServerIP);
+			ShowMessage(Message);
+
+			ConnectToServices();
+		}
+	}
+#endif
+
+	return IsSuccess;
 }
 
