@@ -126,7 +126,13 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 	}
 
 	InPose.Update(Context);
+
+#if (ENGINE_MAJOR_VERSION>=4) && (ENGINE_MINOR_VERSION>=22)
+	GetEvaluateGraphExposedInputs().Execute(Context);
+#else
 	EvaluateGraphExposedInputs.Execute(Context);
+#endif
+	
 
 	if (mSkeletonBinding.IsConnected())
 	{
