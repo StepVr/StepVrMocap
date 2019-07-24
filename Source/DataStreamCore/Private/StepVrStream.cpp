@@ -104,17 +104,16 @@ void StepMocapServers::ReturnStream(TSharedRef<FStepMocapStream> StepMocapStream
 
 void ConvertToUE(transform* InData, TArray<FTransform>& OutData)
 {
-	OutData.Init(FTransform::Identity, STEPBONESNUMS);
+	OutData.Empty(STEPBONESNUMS);
 
 	FVector TempVec;
 	FQuat TempQuat;
 
 	static const FQuat QBA = FQuat::FQuat(FVector(0, 0, 1), PI);
 	static const FQuat QTE = FQuat::FQuat(FVector(0, 0, 1), -PI / 2.0).Inverse()*FQuat::FQuat(FVector(1, 0, 0), -PI / 2.0).Inverse();
+
 	for (int32 i = 0; i < STEPBONESNUMS; i++)
 	{
-		FTransform& TempData = OutData[i];
-
 		TempVec.X = InData[i].Location.z * 100;
 		TempVec.Y = InData[i].Location.x * 100;
 		TempVec.Z = InData[i].Location.y * 100;
@@ -129,14 +128,21 @@ void ConvertToUE(transform* InData, TArray<FTransform>& OutData)
 
 		if (!TempQuat.IsNormalized())
 		{
-			FString Message = FString::Printf(TEXT("%f--%f--%f--%f"), TempQuat.X, TempQuat.Y, TempQuat.Z, TempQuat.W);
-			ShowMessage(Message);
-			OutData.Empty();
 			break;
 		}
 
-		TempData.SetLocation(TempVec);
-		TempData.SetRotation(TempQuat);
+		OutData.Add(FTransform(TempQuat, TempVec));
+		//TempData.SetLocation(TempVec);
+		//TempData.SetRotation(TempQuat);
+	}
+
+	if (OutData.Num() != STEPBONESNUMS)
+	{
+		OutData.Empty();
+	}
+	else
+	{
+		OutData[0] = FTransform::Identity;
 	}
 }
 void ConvertToUE(V4* InData, TArray<FRotator>& OutData)
@@ -173,8 +179,6 @@ void ConvertToUE(V4* InData, TArray<FRotator>& OutData)
 // Default constructor.
 FStepDataToSkeletonBinding::FStepDataToSkeletonBinding()
 {
-	UE4BoneIndices.SetNumUninitialized(STEPBONESNUMS);
-	UE4HandBoneIndices.SetNumUninitialized(STEPHANDBONESNUMS);
 }
 
 FStepDataToSkeletonBinding::~FStepDataToSkeletonBinding()
@@ -189,7 +193,8 @@ FStepDataToSkeletonBinding::~FStepDataToSkeletonBinding()
 
 bool FStepDataToSkeletonBinding::ConnectToServer(const FMocapServerInfo& InServerInfo)
 {
-	mIpAddress = InServerInfo.ServerIP;
+	CacheServerInfo = InServerInfo;
+
 	if (!StepMpcapStream.IsValid())
 	{
 		//创建新的Steam
@@ -215,23 +220,35 @@ bool FStepDataToSkeletonBinding::IsConnected()
 	return StepMpcapStream.IsValid() && StepMpcapStream->IsConnected();
 }
 
+void BindBone(FStepDataToSkeletonBinding::MapBone& OutMapBone,FStepDataToSkeletonBinding::EMapBoneType BoneType, int32 StepIndex, int32 UeIndex)
+{
+
+}
 // Bind the given Strean to the given skeleton and store the result.
-bool FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, TMap<FString, FBoneReference>& BoneReferences)
+void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, BoneMappings& BodyBoneReferences, BoneMappings& HandBoneReferences)
 {
 	mBound = false;
+
+	if (!StepMpcapStream.IsValid())
+	{
+		return;
+	}
 
 	USkeleton* Skeleton = AnimInstanceProxy->GetSkeleton();
 	if (Skeleton == nullptr)
 	{
-		return mBound;
+		return;
 	}
 
-	UE4BoneIndices.Empty(STEPBONESNUMS);
-	int32 ue4BoneIndex = INDEX_NONE;
+	UE4BoneIndices.Empty();
+	MapBone CurMapBone;
 
-	for (auto& BoneName :StepBoneNames)
+	/**
+	 * 身体骨骼
+	 */
+	for (int32 Index = 0; Index < StepBoneNames.Num(); Index++)
 	{
-		FBoneReference* Ref = BoneReferences.Find(BoneName);
+		FBoneReference* Ref = BodyBoneReferences.Find(StepBoneNames[Index]);
 		if (Ref == nullptr)
 		{
 			continue;
@@ -239,20 +256,49 @@ bool FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 
 		Ref->Initialize(Skeleton);
 
-		if (Ref->HasValidSetup())
+		if (Ref->HasValidSetup() && Ref->BoneIndex != 0)
 		{
-			UE4BoneIndices.Add(Ref->BoneIndex);
-		}
-		else
-		{
-			FString Message = FString::Printf(TEXT("StepVrMocap Error Bind %s"), *BoneName);
-			ShowMessage(Message);
+			CurMapBone.MapBoneType = EMapBoneType::Bone_Body;
+			CurMapBone.StepBoneIndex = Index;
+			CurMapBone.UeBoneIndex = Ref->BoneIndex;
+			UE4BoneIndices.Add(CurMapBone);
 		}
 	}
 
-	mBound = UE4BoneIndices.Num() == STEPBONESNUMS;
 
-	return mBound;
+	/**
+	* 手部骨骼
+	*/
+	if (CacheServerInfo.EnableHand)
+	{
+		for (int32 Index = 0; Index < StepHandBoneNames.Num(); Index++)
+		{
+			FBoneReference* Ref = HandBoneReferences.Find(StepHandBoneNames[Index]);
+			if (Ref == nullptr)
+			{
+				continue;
+			}
+
+			Ref->Initialize(Skeleton);
+
+			if (Ref->HasValidSetup())
+			{
+				CurMapBone.MapBoneType = EMapBoneType::Bone_Hand;
+				CurMapBone.StepBoneIndex = Index;
+				CurMapBone.UeBoneIndex = Ref->BoneIndex;
+				UE4BoneIndices.Add(CurMapBone);
+			}
+		}
+	}
+
+
+	UE4BoneIndices.Sort([](const MapBone& data1, const MapBone&data2)
+	{
+		return data1.UeBoneIndex < data2.UeBoneIndex;
+	});
+
+
+	mBound = UE4BoneIndices.Num() > 0;
 }
 
 bool FStepDataToSkeletonBinding::BindToHandSkeleton(FAnimInstanceProxy* AnimInstanceProxy, TMap<FString, FBoneReference>& BoneReferences)
@@ -309,11 +355,18 @@ float FStepDataToSkeletonBinding::GetFigureScale()
 }
 
 // Access the UE4 bone index given the bone def index.
-int32 FStepDataToSkeletonBinding::GetUE4BoneIndex(int32 boneDefIndex) const
+const FStepDataToSkeletonBinding::MapBone& FStepDataToSkeletonBinding::GetUE4BoneIndex(int32 boneDefIndex) const
 {
 	if (UE4BoneIndices.IsValidIndex(boneDefIndex))
 		return UE4BoneIndices[boneDefIndex];
-	return INDEX_NONE;
+
+	static MapBone GTempData;
+	return GTempData;
+}
+
+const TArray<FStepDataToSkeletonBinding::MapBone>& FStepDataToSkeletonBinding::GetUE4Bones()
+{
+	return UE4BoneIndices;
 }
 
 int32 FStepDataToSkeletonBinding::GetUE4HandBoneIndex(int32 SegmentIndex) const
@@ -373,28 +426,43 @@ bool FStepDataToSkeletonBinding::IsBodyBound()
 	return mBound;
 }
 
-bool FStepDataToSkeletonBinding::UpdateBodyFrameData(TArray<FTransform>& outPose)
+void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 {
 	if (!StepMpcapStream.IsValid())
 	{
-		return false;
+		return;
 	}
 
-	StepMpcapStream->GetBonesTransform_Body(outPose);
+	auto BodyData = StepMpcapStream->GetBonesTransform_Body();
+	bool bBodyData = BodyData.Num() == STEPBONESNUMS;
 
-	return true;
-}
-bool FStepDataToSkeletonBinding::UpdateHandFrameData(TArray<FRotator>& outPose)
-{
-	if (!StepMpcapStream.IsValid())
+	auto HandData = StepMpcapStream->GetBonesTransform_Hand();
+	bool bHandData = CacheServerInfo.EnableHand && HandData.Num() == STEPHANDBONESNUMS;
+
+	for (auto& Temp : UE4BoneIndices)
 	{
-		return false;
+		switch (Temp.MapBoneType)
+		{
+			case EMapBoneType::Bone_Body:
+			{
+				if (bBodyData)
+				{
+					Temp.BoneData = BodyData[Temp.StepBoneIndex];
+				}
+			}
+			break;
+			case EMapBoneType::Bone_Hand:
+			{
+				if (bHandData)
+				{
+					Temp.BoneData = FTransform(HandData[Temp.StepBoneIndex]);
+				}
+			}
+			break;
+		}
 	}
-
-	StepMpcapStream->GetBonesTransform_Hand(outPose);
-
-	return true;
 }
+
 FStepMocapStream::FStepMocapStream()
 {
 
@@ -451,24 +519,14 @@ const FMocapServerInfo& FStepMocapStream::GetServerInfo()
 	return UsedServerInfo;
 }
 
-void FStepMocapStream::GetBonesTransform_Body(TArray<FTransform>& BonesData)
+TArray<FTransform>& FStepMocapStream::GetBonesTransform_Body()
 {
-	BonesData.Empty();
-
-	if (CacheBodyFrameData.Num() > 0)
-	{
-		BonesData = CacheBodyFrameData;
-	}
+	return CacheBodyFrameData;
 }
 
-void FStepMocapStream::GetBonesTransform_Hand(TArray<FRotator>& BonesData)
+TArray<FRotator>& FStepMocapStream::GetBonesTransform_Hand()
 {
-	BonesData.Empty();
-
-	if (CacheHandFrameData.Num() > 0)
-	{
-		BonesData = CacheHandFrameData;
-	}
+	return CacheHandFrameData;
 }
 
 void FStepMocapStream::GetBonesTransform_Face(TMap<FString, float>& BonesData)
@@ -577,24 +635,7 @@ void FStepMocapStream::EngineBegineFrame()
 	if (IsBodyConnect())
 	{
 		UpdateFrameData_Body();
-		ConvertToUE(GStepMocapData, UEMocapData);
-
-		CacheBodyFrameData.Empty();
-		FTransform TeampData;
-		for (int32 i = 0; i < UEMocapData.Num(); i++)
-		{
-			if (i >= 1)
-			{
-				TeampData.SetLocation(UEMocapData[StepBonesID[i]].GetRotation().Inverse() * (UEMocapData[i].GetLocation() - UEMocapData[StepBonesID[i]].GetLocation()));
-				TeampData.SetRotation(UEMocapData[StepBonesID[i]].GetRotation().Inverse() * UEMocapData[i].GetRotation());
-			}
-			else
-			{
-				TeampData = UEMocapData[i];
-			}
-
-			CacheBodyFrameData.Add(TeampData);
-		}
+		ConvertToUE(GStepMocapData, CacheBodyFrameData);
 	}
 
 	//手套数据
@@ -609,36 +650,37 @@ void FStepMocapStream::EngineBegineFrame()
 		UpdateFrameData_Hand();
 		ConvertToUE(GStepHandData, UEMocapDataGlobal);
 
-		CacheHandFrameData.Empty();
-		if (UEMocapDataGlobal.Num() != STEPHANDBONESNUMS)
-		{
-			break;
-		}
+		//CacheHandFrameData.Empty();
+		CacheHandFrameData = UEMocapDataGlobal;
+		//if (UEMocapDataGlobal.Num() != STEPHANDBONESNUMS)
+		//{
+		//	break;
+		//}
 
-		//转化为Local
-		FQuat TeampData = FQuat::Identity;
-		for (int32 i = 0; i < UEMocapDataGlobal.Num(); i++)
-		{
-			TeampData = FQuat::Identity;
-			if (StepHandBonesID[i] < 100)
-			{
-				TeampData = (UEMocapDataGlobal[StepHandBonesID[i]].Quaternion().Inverse() * UEMocapDataGlobal[i].Quaternion());
-			}
+		////转化为Local
+		//FQuat TeampData = FQuat::Identity;
+		//for (int32 i = 0; i < UEMocapDataGlobal.Num(); i++)
+		//{
+		//	TeampData = FQuat::Identity;
+		//	if (StepHandBonesID[i] < 100)
+		//	{
+		//		TeampData = (UEMocapDataGlobal[StepHandBonesID[i]].Quaternion().Inverse() * UEMocapDataGlobal[i].Quaternion());
+		//	}
 
-			else if (StepHandBonesID[i] == 100 && UEMocapData.IsValidIndex(9))
-			{
-				//左手
-				FQuat tmm0 = UEMocapDataGlobal[0].Quaternion();
-				FQuat tmm1 = UEMocapDataGlobal[16].Quaternion();
-				TeampData = (UEMocapData[9].GetRotation().Inverse() * UEMocapDataGlobal[0].Quaternion());
-			}
-			else if (StepHandBonesID[i] == 101 && UEMocapData.IsValidIndex(13))
-			{
-				//右手
-				TeampData = (UEMocapData[13].GetRotation().Inverse() * UEMocapDataGlobal[16].Quaternion());
-			}
-			CacheHandFrameData.Add(FRotator(TeampData));
-		}
+		//	else if (StepHandBonesID[i] == 100 && UEMocapData.IsValidIndex(9))
+		//	{
+		//		//左手
+		//		FQuat tmm0 = UEMocapDataGlobal[0].Quaternion();
+		//		FQuat tmm1 = UEMocapDataGlobal[16].Quaternion();
+		//		TeampData = (UEMocapData[9].GetRotation().Inverse() * UEMocapDataGlobal[0].Quaternion());
+		//	}
+		//	else if (StepHandBonesID[i] == 101 && UEMocapData.IsValidIndex(13))
+		//	{
+		//		//右手
+		//		TeampData = (UEMocapData[13].GetRotation().Inverse() * UEMocapDataGlobal[16].Quaternion());
+		//	}
+		//	CacheHandFrameData.Add(FRotator(TeampData));
+		//}
 	} while (0);
 
 

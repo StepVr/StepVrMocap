@@ -9,6 +9,8 @@
 class StepIK_Client;
 struct FStepVRPNChar;
 
+typedef TMap<FString, FBoneReference> BoneMappings;
+
 
 class FStepMocapStream
 {
@@ -25,8 +27,8 @@ public:
 	void SetServerInfo(const FMocapServerInfo& ServerInfo);
 	const FMocapServerInfo& GetServerInfo();
 
-	void GetBonesTransform_Body(TArray<FTransform>& BonesData);
-	void GetBonesTransform_Hand(TArray<FRotator>& BonesData);
+	TArray<FTransform>&	GetBonesTransform_Body();
+	TArray<FRotator>&	GetBonesTransform_Hand();
 	void GetBonesTransform_Face(TMap<FString,float>& BonesData);
 
 	bool IsConnected();
@@ -71,6 +73,31 @@ private:
 class STEPVRDATASTREAMCORE_API FStepDataToSkeletonBinding
 {
 public:
+	enum class EMapBoneType : uint8
+	{
+		Bone_Body,
+		Bone_Hand,
+		InValid,
+	};
+
+	struct MapBone
+	{
+		uint8			StepBoneIndex;
+		int32			UeBoneIndex;
+		EMapBoneType	MapBoneType;
+		FTransform		BoneData;
+		MapBone()
+		{
+			Reset();
+		}
+
+		void Reset()
+		{
+			StepBoneIndex = 0;
+			UeBoneIndex = INDEX_NONE;
+			MapBoneType = EMapBoneType::InValid;
+		}
+	};
 
 	// Default constructor.
 	FStepDataToSkeletonBinding();
@@ -82,10 +109,11 @@ public:
 	/**
 	 * 全身动捕
 	 */
-	bool BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, TMap<FString, FBoneReference>& BoneReferences);
+	void BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, BoneMappings& BodyBoneReferences, BoneMappings& HandBoneReferences);
 	bool IsBodyBound();
-	bool UpdateBodyFrameData(TArray<FTransform>& outPose);
-	int32 GetUE4BoneIndex(int32 SegmentIndex) const;
+	void UpdateSkeletonFrameData();
+	const FStepDataToSkeletonBinding::MapBone& GetUE4BoneIndex(int32 SegmentIndex) const;
+	const TArray<FStepDataToSkeletonBinding::MapBone>& GetUE4Bones();
 	float GetFigureScale();
 
 	/**
@@ -93,7 +121,6 @@ public:
 	 */
 	bool BindToHandSkeleton(FAnimInstanceProxy* AnimInstanceProxy, TMap<FString, FBoneReference>& BoneReferences);
 	bool IsHandBound();
-	bool UpdateHandFrameData(TArray<FRotator>& outPose);
 	int32 GetUE4HandBoneIndex(int32 SegmentIndex) const;
 
 	/**
@@ -104,8 +131,7 @@ public:
 	bool IsFaceBound();
 
 private:
-	FString mSubjectName;
-	FString mIpAddress;
+	FMocapServerInfo CacheServerInfo;;
 
 	//ServerStream
 	TSharedPtr<FStepMocapStream> StepMpcapStream;
@@ -113,7 +139,7 @@ private:
 	/**
 	 * 全身动捕数据
 	 */
-	TArray<int32> UE4BoneIndices;
+	TArray<MapBone> UE4BoneIndices;
 	bool mBound = false;
 
 	/**

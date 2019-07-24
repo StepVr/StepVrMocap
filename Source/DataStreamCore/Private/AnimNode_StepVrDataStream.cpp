@@ -21,10 +21,6 @@ FAnimNode_StepDataStream::FAnimNode_StepDataStream()
 		BindMocapHandBones.FindOrAdd(Name) = FBoneReference(*Name);
 	}
 
-	RedundanceMocapBones.Add(FBoneReference(TEXT("Spine")));
-	RedundanceMocapBones.Add(FBoneReference(TEXT("Spine2")));
-	RedundanceMocapBones.Add(FBoneReference(TEXT("neck1")));
-
 	for (auto& Temp : StepFaceMorphTargets)
 	{
 		BindMorphTarget.Add(Temp, Temp);
@@ -52,22 +48,7 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 
 	if (mSkeletonBinding.ConnectToServer(MocapServerInfo))
 	{
-		mSkeletonBinding.BindToSkeleton(AnimInstanceProxy,BindMocapBones);
-		mSkeletonBinding.BindToHandSkeleton(AnimInstanceProxy, BindMocapHandBones);
-		//mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, FaceMorphTargetName);
-
-		for (auto& Ref : RedundanceMocapBones)
-		{
-			Ref.Initialize(skeleton);
-		}
-
-		//for (auto& Ref : FaceMorphTargetName)
-		//{
-		//	if (!BindMorphTarget.Contains(Ref))
-		//	{
-		//		BindMorphTarget.Add(Ref, FStepFaceMorghs::Expressions_abdomExpansion_max);
-		//	}
-		//}
+		mSkeletonBinding.BindToSkeleton(AnimInstanceProxy,BindMocapBones, BindMocapHandBones);
 	}
 }
 
@@ -111,6 +92,10 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 
 	MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
 	MocapServerInfo.ServerPort = PortNumber;
+	//MocapServerInfo.EnableBody = EnableBody;
+	MocapServerInfo.EnableHand = EnableHand;
+	MocapServerInfo.EnableFace = EnableFace;
+
 
 	BindServerStream(Context.AnimInstanceProxy);
 }
@@ -136,18 +121,11 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 
 	if (mSkeletonBinding.IsConnected())
 	{
-		//身体数据
-		if (EnableBody && mSkeletonBinding.IsBodyBound())
-		{
-			mSkeletonBinding.UpdateBodyFrameData(BonesData);
-		}
-		//手部数据
-		if (EnableHand && mSkeletonBinding.IsHandBound())
-		{
-			mSkeletonBinding.UpdateHandFrameData(HandBonesData);
-		}
+		//骨骼数据
+		mSkeletonBinding.UpdateSkeletonFrameData();
+
 		//面部数据
-		if (EnableFace && mSkeletonBinding.IsFaceBound())
+		if (EnableFace)
 		{
 			mSkeletonBinding.UpdateFaceFrameData(FaceMorphTargetData);
 		}
@@ -160,106 +138,56 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 //	return funcTask;
 //}
 
-void FAnimNode_StepDataStream::Evaluate_AnyThread(FPoseContext& Output)
+void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output)
 {
-	check(Output.AnimInstanceProxy->GetSkeleton() != nullptr);
-	Output.Pose.ResetToRefPose();
+	Output.ResetToRefPose();
 
 	//更新动捕姿态
-	do 
+	const FBoneContainer& RequiredBone = Output.AnimInstanceProxy->GetRequiredBones();
+	int32 NumBones = RequiredBone.GetNumBones();
+	for (int32 Index = 0, StepIndex = 0; Index < NumBones; Index++)
 	{
-		if ((!EnableBody) || (!mSkeletonBinding.IsBodyBound()))
+		auto MapBoneData = mSkeletonBinding.GetUE4BoneIndex(StepIndex);
+
+		//根节点
+		if (Index == 0)
 		{
-			break;
+			FCompactPoseBoneIndex BoneIndex(Index);
+			Output.Pose.SetComponentSpaceTransform(BoneIndex, FTransform::Identity);
+			continue;
 		}
 
-		for (int32 i = 0; i < BonesData.Num(); i++)
+		//没有匹配的点
+		if (MapBoneData.UeBoneIndex != Index)
 		{
-			auto ue4Index = mSkeletonBinding.GetUE4BoneIndex(i);
-
-			if (ue4Index != INDEX_NONE)
-			{
-				FTransform& bone = BonesData[i];
-
-				auto SkeletonIndex = Output.Pose.GetBoneContainer().MakeCompactPoseIndex(FMeshPoseBoneIndex(ue4Index));
-
-				Output.Pose[SkeletonIndex] = bone;
-			}
+			FCompactPoseBoneIndex BoneIndex(Index);
+			Output.Pose.CalculateComponentSpaceTransform(BoneIndex);
+			continue;
 		}
 
-		//多余的骨骼清零
-		for (auto& BoneRef : RedundanceMocapBones)
-		{
-			if (!BoneRef.HasValidSetup())
-			{
-				continue;
-			}
+		//匹配的点
+		FCompactPoseBoneIndex BoneIndex(MapBoneData.UeBoneIndex);
 
-			auto SkeletonIndex = Output.Pose.GetBoneContainer().MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneRef.BoneIndex));
-			Output.Pose[SkeletonIndex] = FTransform::Identity;
+		switch (MapBoneData.MapBoneType)
+		{
+		case FStepDataToSkeletonBinding::EMapBoneType::Bone_Body:
+		{
+			MapBoneData.BoneData.SetToRelativeTransform(FTransform::Identity);
 		}
-	} while (0);
-
-
-	//更新手部骨骼姿态
-	do{
-		if ((!EnableHand) || (!mSkeletonBinding.IsHandBound()))
+		break;
+		case FStepDataToSkeletonBinding::EMapBoneType::Bone_Hand:
 		{
-			break;
+			MapBoneData.BoneData.SetToRelativeTransform(FTransform::Identity);
+			auto Temp = Output.Pose.GetComponentSpaceTransform(BoneIndex);
+			MapBoneData.BoneData.SetLocation(Temp.GetLocation());
+		}
+		break;
 		}
 
-		for (int32 i = 0; i < HandBonesData.Num(); i++)
-		{
-			auto ue4Index = mSkeletonBinding.GetUE4HandBoneIndex(i);
+		Output.Pose.SetComponentSpaceTransform(BoneIndex, MapBoneData.BoneData);
+		StepIndex++;
+	}
 
-			if (i == 0 || i == 16)
-			{
-				continue;
-			}
-
-			if (ue4Index != INDEX_NONE)
-			{
-				auto SkeletonIndex = Output.Pose.GetBoneContainer().MakeCompactPoseIndex(FMeshPoseBoneIndex(ue4Index));
-
-				if (1/*i == 0*/)
-				{
-					Output.Pose[SkeletonIndex].SetRotation(HandBonesData[i].Quaternion());
-				}
-				//Output.Pose[SkeletonIndex].SetRotation(HandBonesData[i].Quaternion());
-				//Output.Pose[SkeletonIndex].SetRotation(FQuat::Identity); 
-			}
-		}
-	} while (0);
-
-
-	//更新面部捕捉
-	do 
-	{
-		if ((!EnableFace) || (!mSkeletonBinding.IsFaceBound()))
-		{
-			break;
-		}
-
-		USkeletalMeshComponent* SkeletonComponet = Output.AnimInstanceProxy->GetSkelMeshComponent();
-		if (SkeletonComponet == nullptr)
-		{
-			break;
-		}
-
-		//static UEnum* GRootEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("FStepFaceMorghs"), true);
-		//GRootEnumPtr->GetNameByValue((int)(*EnumPtr)).ToString()
-		for (auto& temp : BindMorphTarget)
-		{
-			float* ValuePtr = FaceMorphTargetData.Find(temp.Key);
-			if (ValuePtr == nullptr)
-			{
-				continue;
-			}
-
-			SkeletonComponet->SetMorphTarget(FName(*temp.Value), *ValuePtr);
-		}
-
-	} while (0);
 }
 
 void FAnimNode_StepDataStream::CacheBones_AnyThread(const FAnimationCacheBonesContext & Context)

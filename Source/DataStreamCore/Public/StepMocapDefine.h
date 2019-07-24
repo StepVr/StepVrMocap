@@ -29,10 +29,15 @@ struct FMocapServerInfo
 	FString ServerIP;
 	int32	ServerPort;
 
-	FMocapServerInfo()
+	bool EnableHand;
+	bool EnableFace;
+
+	FMocapServerInfo():
+		ServerIP(""),
+		ServerPort(0),
+		EnableHand(false),
+		EnableFace(false)
 	{
-		ServerIP = "";
-		ServerPort = 0;
 	};
 
 	bool IsEmpty() const

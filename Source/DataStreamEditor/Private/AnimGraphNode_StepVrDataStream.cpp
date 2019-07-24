@@ -4,6 +4,7 @@
 #include "AnimGraphNode_StepVrDataStream.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "StepMocapDefine.h"
+#include "AnimationGraphSchema.h"
 
 
 UAnimGraphNode_StepDataStream::UAnimGraphNode_StepDataStream(const FObjectInitializer&  PCIP)
@@ -53,7 +54,7 @@ void UAnimGraphNode_StepDataStream::ValidateAnimNodeDuringCompilation(class USke
 
 	if (NoteMessage.IsValidIndex(0))
 	{
-		MessageLog.Warning(TEXT("StepMocap Bind Error,Not working properly"));
+		MessageLog.Warning(TEXT("StepMocap Bind Error"));
 		for (auto& BoneName : NoteMessage)
 		{
 			FString Message = FString::Printf(TEXT("Can Not Find Bone %s"), *BoneName);
@@ -80,14 +81,19 @@ void UAnimGraphNode_StepDataStream::ValidateAnimNodeDuringCompilation(class USke
 
 	if (NoteMessage.IsValidIndex(0))
 	{
-		MessageLog.Warning(TEXT("StepHandCapture Bind Error,Not working properly"));
+		MessageLog.Warning(TEXT("StepHandCapture Bind Error"));
 		for (auto& BoneName : NoteMessage)
 		{
 			FString Message = FString::Printf(TEXT("Can Not Find Bone %s"), *BoneName);
 			MessageLog.Note(*Message);
 		}
 	}
+}
 
-
-
+void UAnimGraphNode_StepDataStream::CreateOutputPins()
+{
+	if (!IsSinkNode())
+	{
+		CreatePin(EGPD_Output, UAnimationGraphSchema::PC_Struct, FComponentSpacePoseLink::StaticStruct(), TEXT("Pose"));
+	}
 }

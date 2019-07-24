@@ -20,7 +20,9 @@ class UAnimGraphNode_StepDataStream : public UAnimGraphNode_Base
 	FLinearColor	GetNodeTitleColor() const override;
 	FText			GetTooltipText() const override;
 	FString			GetNodeCategory() const override;
-	void			ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog) override;		
+	void			ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog) override;	
+	// Create any output pins necessary for this node
+	virtual void	CreateOutputPins() override;
 	// End of UEdGraphNode interface
 #endif
 
