@@ -80,9 +80,8 @@ public:
 	FAnimNode_StepDataStream();
 	~FAnimNode_StepDataStream();
 
+	void Connected();
 	void BindSkeleton(FAnimInstanceProxy* AnimInstanceProxy);
-	void BindServerStream(FAnimInstanceProxy* AnimInstanceProxy);
-	void IntializeServerStreamer(FAnimInstanceProxy* AnimInstanceProxy);
 	
 	// FAnimNode_Base interface
 	void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
@@ -95,6 +94,7 @@ public:
 
 private:
 	void BuildServerInfo();
+	void CheckInit();
 
 	//绑定骨架
 	FStepDataToSkeletonBinding mSkeletonBinding;
@@ -105,5 +105,10 @@ private:
 	//缓存数据
 	const FAnimInstanceProxy* CacheAnimInstanceProxy = nullptr;
 	const APawn* OwnerPawn = nullptr;
+
+	//联机
+	bool IsInit = false;
+	bool IsLocal = true;
+	uint32 AddrValue = 0;
 };
 

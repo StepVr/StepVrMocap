@@ -1,6 +1,7 @@
 ﻿// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
 #include "AnimNode_StepVrDataStream.h"
 #include "StepVrReplicatedComponent.h"
+#include "StepVrComponent.h"
 
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/MorphTarget.h"
@@ -45,6 +46,12 @@ FAnimNode_StepDataStream::~FAnimNode_StepDataStream()
 }
 
 
+void FAnimNode_StepDataStream::Connected()
+{
+	BuildServerInfo();
+	mSkeletonBinding.ConnectToServer(MocapServerInfo);
+}
+
 void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProxy)
 {
 	if (AnimInstanceProxy == nullptr)
@@ -58,44 +65,11 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 		return;
 	}
 
-	if (mSkeletonBinding.ConnectToServer(MocapServerInfo))
-	{
-		//绑定骨骼
-		mSkeletonBinding.BindToSkeleton(AnimInstanceProxy,BindMocapBones, BindMocapHandBones);
+	//绑定骨骼
+	mSkeletonBinding.BindToSkeleton(AnimInstanceProxy, BindMocapBones, BindMocapHandBones);
 
-		//绑定顶点变形
-		mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, BindMorphTarget);
-	}
-}
-
-void FAnimNode_StepDataStream::BindServerStream(FAnimInstanceProxy* AnimInstanceProxy)
-{
-	if (MocapServerInfo.IsEmpty())
-	{
-		return;
-	}
-
-	if (AnimInstanceProxy == nullptr)
-	{
-		return;
-	}
-
-	BindSkeleton(AnimInstanceProxy);
-}
-
-void FAnimNode_StepDataStream::IntializeServerStreamer(FAnimInstanceProxy* AnimInstanceProxy)
-{
-	if (MocapServerInfo.IsEmpty())
-	{
-		return;
-	}
-
-	if (AnimInstanceProxy == nullptr)
-	{
-		return;
-	}
-
-	BindSkeleton(AnimInstanceProxy);
+	//绑定顶点变形
+	mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, BindMorphTarget);
 }
 
 void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeContext& Context)
@@ -108,9 +82,16 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	// Forward to the incoming pose link.
 	check(Context.AnimInstanceProxy != nullptr);
 
-	BuildServerInfo();
+	//绑定骨骼
+	BindSkeleton(Context.AnimInstanceProxy);
 
-	BindServerStream(Context.AnimInstanceProxy);
+#if WITH_EDITOR
+	if (GWorld->WorldType == EWorldType::Editor)
+	{
+		IsInit = true;
+		Connected();
+	}
+#endif
 }
 
 
@@ -124,15 +105,17 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 	EvaluateGraphExposedInputs.Execute(Context);
 #endif
 
-	BuildServerInfo();
-	if (mSkeletonBinding.ConnectToServer(MocapServerInfo))
+	if (!IsInit)
 	{
-		//骨骼数据
-		mSkeletonBinding.UpdateSkeletonFrameData();
-
-		//面部数据
-		mSkeletonBinding.UpdateFaceFrameData();
+		CheckInit();
+		return;
 	}
+
+	//骨骼数据
+	mSkeletonBinding.UpdateSkeletonFrameData();
+
+	//面部数据
+	mSkeletonBinding.UpdateFaceFrameData();
 }
 
 //FGraphEventRef oExecOnGameThread(TFunction<void()> funcLambda)
@@ -146,6 +129,11 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 	SCOPE_CYCLE_COUNTER(STAT_EvaluateComponentSpace_AnyThread);
 
 	Output.ResetToRefPose();
+
+	if (!IsInit)
+	{
+		return;
+	}
 
 	//更新动捕姿态
 	if (PauseSkeletonCapture == false)
@@ -233,4 +221,52 @@ void FAnimNode_StepDataStream::BuildServerInfo()
 	//MocapServerInfo.EnableBody = EnableBody;
 	MocapServerInfo.EnableHand = EnableHand;
 	MocapServerInfo.EnableFace = EnableFace;
+	MocapServerInfo.IsLocal = IsLocal;
+	MocapServerInfo.AddrValue = AddrValue;
+}
+
+void FAnimNode_StepDataStream::CheckInit()
+{
+	IsInit = false;
+
+	do 
+	{
+		if (!IsValid(OwnerPawn))
+		{
+			break;
+		}
+
+		TArray<UStepVrComponent*> Coms;
+		OwnerPawn->GetComponents(Coms);
+		if (Coms.Num() == 0)
+		{
+			break;
+		}
+
+		UStepVrComponent* TargetCom = Coms[0];
+		if (!TargetCom->IsInitialization())
+		{
+			break;
+		}
+
+		IsLocal = TargetCom->IsLocalControlled();
+		if (IsLocal)
+		{
+			IsInit = true;
+			break;
+		}
+
+		if (!TargetCom->IsValidPlayerAddr())
+		{
+			break;
+		}
+
+		AddrValue = TargetCom->GetPlayerAddr();
+		IsInit = true;
+	} while (0);
+
+	if (IsInit)
+	{
+		Connected();
+	}
 }

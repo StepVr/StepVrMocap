@@ -38,16 +38,12 @@ public:
 
 protected:
 	void EngineBegineFrame();
-#if WITH_STEPMAGIC
-	bool UpdateStepMagicData();
-#endif
 	void UpdateFrameData_Body();
 	void UpdateFrameData_Hand();
 	void UpdateFrameData_Face();
 
 	bool CheckConnectToServer();
 	void ConnectToServices();
-	void ConnectToStepMagic();
 	void DisconnectToServer();
 
 private:
@@ -134,6 +130,7 @@ public:
 private:
 	FMocapServerInfo CacheServerInfo;
 
+	
 	//ServerStream
 	TSharedPtr<FStepMocapStream> StepMpcapStream;
 

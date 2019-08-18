@@ -43,11 +43,17 @@ struct FMocapServerInfo
 	bool EnableHand;
 	bool EnableFace;
 
+	//同步
+	bool IsLocal;
+	uint32 AddrValue;
+
 	FMocapServerInfo():
 		ServerIP(""),
 		ServerPort(0),
 		EnableHand(false),
-		EnableFace(false)
+		EnableFace(false),
+		IsLocal(true),
+		AddrValue(0)
 	{
 	};
 
