@@ -187,48 +187,45 @@ FStepDataToSkeletonBinding::~FStepDataToSkeletonBinding()
 	{
 		StepMocapServers::ReturnStream(StepMpcapStream.ToSharedRef());
 	}
-	
 }
 
 
 bool FStepDataToSkeletonBinding::ConnectToServer(const FMocapServerInfo& InServerInfo)
 {
+	if (InServerInfo.IsEmpty())
+	{
+		return false;
+	}
+
+	if (CacheServerInfo.IsEqual(InServerInfo))
+	{
+		return StepMpcapStream.IsValid() && StepMpcapStream->IsConnected();
+	}
+
 	CacheServerInfo = InServerInfo;
 
+	//创建新的Steam
 	if (!StepMpcapStream.IsValid())
 	{
-		//创建新的Steam
-		StepMpcapStream = StepMocapServers::GetStream(InServerInfo);
+		StepMpcapStream = StepMocapServers::GetStream(CacheServerInfo);
 		return StepMpcapStream.IsValid();
 	}
 
 	//与当前的是否相同
-	if (StepMpcapStream->GetServerInfo().IsEqual(InServerInfo))
+	if (StepMpcapStream->GetServerInfo().IsEqual(CacheServerInfo))
 	{
 		return true;
 	}
 
 	//释放并创建新的Steam
 	StepMocapServers::ReturnStream(StepMpcapStream.ToSharedRef());
-	StepMpcapStream = StepMocapServers::GetStream(InServerInfo);
+	StepMpcapStream = StepMocapServers::GetStream(CacheServerInfo);
 
 	return StepMpcapStream.IsValid();
 }
 
-bool FStepDataToSkeletonBinding::IsConnected()
-{
-	return StepMpcapStream.IsValid() && StepMpcapStream->IsConnected();
-}
-
-void BindBone(FStepDataToSkeletonBinding::MapBone& OutMapBone,FStepDataToSkeletonBinding::EMapBoneType BoneType, int32 StepIndex, int32 UeIndex)
-{
-
-}
-// Bind the given Strean to the given skeleton and store the result.
 void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, BoneMappings& BodyBoneReferences, BoneMappings& HandBoneReferences)
 {
-	mBound = false;
-
 	if (!StepMpcapStream.IsValid())
 	{
 		return;
@@ -241,7 +238,7 @@ void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 	}
 
 	UE4BoneIndices.Empty();
-	MapBone CurMapBone;
+	FMapBone CurMapBone;
 
 	/**
 	 * 身体骨骼
@@ -292,61 +289,39 @@ void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 	}
 
 
-	UE4BoneIndices.Sort([](const MapBone& data1, const MapBone&data2)
+	UE4BoneIndices.Sort([](const FMapBone& data1, const FMapBone&data2)
 	{
 		return data1.UeBoneIndex < data2.UeBoneIndex;
 	});
 
-
-	mBound = UE4BoneIndices.Num() > 0;
-}
-
-bool FStepDataToSkeletonBinding::BindToHandSkeleton(FAnimInstanceProxy* AnimInstanceProxy, TMap<FString, FBoneReference>& BoneReferences)
-{
-	mHandBound = false;
-
-	USkeleton* Skeleton = AnimInstanceProxy->GetSkeleton();
-	if (Skeleton == nullptr)
+	UE4NeedUpdateBones.Empty();
+	UE4NeedUpdateBones.AddUnique(0);
+	const FBoneContainer& BoneContainer = AnimInstanceProxy->GetRequiredBones();
+	for (int Index = 0; Index < UE4BoneIndices.Num(); Index++)
 	{
-		return mHandBound;
-	}
-
-	UE4HandBoneIndices.Empty(STEPHANDBONESNUMS);
-	int32 ue4BoneIndex = INDEX_NONE;
-
-	int32 TotalNums = 0;
-	for (auto& BoneName : StepHandBoneNames)
-	{
-		FBoneReference* Ref = BoneReferences.Find(BoneName);
-		if (Ref == nullptr)
+		//当前节点
+		int32 CurIdnex = UE4BoneIndices[Index].UeBoneIndex;
+		UE4NeedUpdateBones.AddUnique(CurIdnex);
+	
+		//父节点
+		while ((CurIdnex = BoneContainer.GetParentBoneIndex(CurIdnex)) > 0)
 		{
-			UE4HandBoneIndices.Add(INDEX_NONE);
-			continue;
-		}
-
-		Ref->Initialize(Skeleton);
-
-		if (Ref->HasValidSetup())
-		{
-			UE4HandBoneIndices.Add(Ref->BoneIndex);
-			TotalNums++;
-		}
-		else
-		{
-			FString Message = FString::Printf(TEXT("StepVrMocap Error Bind %s"), *BoneName);
-			ShowMessage(Message);
+			if (UE4NeedUpdateBones.Find(CurIdnex) == INDEX_NONE)
+			{
+				UE4NeedUpdateBones.Add(CurIdnex);
+			}
+			else
+			{
+				break;
+			}
 		}
 	}
 
-	//两根base
-	mHandBound = TotalNums >= (STEPHANDBONESNUMS - 2);
-
-	return mHandBound;
-}
-
-bool FStepDataToSkeletonBinding::IsHandBound()
-{
-	return mHandBound;
+	UE4NeedUpdateBones.Sort([](const int32& Data1, const int32& Data2)
+	{
+		return Data1 < Data2;
+	});
+	
 }
 
 float FStepDataToSkeletonBinding::GetFigureScale()
@@ -355,65 +330,80 @@ float FStepDataToSkeletonBinding::GetFigureScale()
 }
 
 // Access the UE4 bone index given the bone def index.
-const FStepDataToSkeletonBinding::MapBone& FStepDataToSkeletonBinding::GetUE4BoneIndex(int32 boneDefIndex) const
+const FStepDataToSkeletonBinding::FMapBone& FStepDataToSkeletonBinding::GetUE4BoneIndex(int32 boneDefIndex) const
 {
 	if (UE4BoneIndices.IsValidIndex(boneDefIndex))
+	{
 		return UE4BoneIndices[boneDefIndex];
+	}
 
-	static MapBone GTempData;
+	static FMapBone GTempData;
 	return GTempData;
 }
 
-const TArray<FStepDataToSkeletonBinding::MapBone>& FStepDataToSkeletonBinding::GetUE4Bones()
+const TArray<FStepDataToSkeletonBinding::FMapBone>& FStepDataToSkeletonBinding::GetUE4Bones()
 {
 	return UE4BoneIndices;
 }
 
-int32 FStepDataToSkeletonBinding::GetUE4HandBoneIndex(int32 SegmentIndex) const
+void FStepDataToSkeletonBinding::BindToFaceMorghTarget(FAnimInstanceProxy* AnimInstanceProxy, TMap<FString, FString>& MorghTarget)
 {
-	if (UE4HandBoneIndices.IsValidIndex(SegmentIndex))
-		return UE4HandBoneIndices[SegmentIndex];
-	return INDEX_NONE;
-}
-
-
-bool FStepDataToSkeletonBinding::BindToFaceMorghTarget(FAnimInstanceProxy* AnimInstanceProxy, TArray<FString>& MorghTarget)
-{
-	//暂时不用
 	mFaceBound = false;
-	MorghTarget.Empty();
+	UE4FaceData.Empty();
+
+	if (!CacheServerInfo.EnableFace)
+	{
+		return;
+	}
 
 	USkeletalMeshComponent* Cpmponent = AnimInstanceProxy->GetSkelMeshComponent();
-	if (Cpmponent == nullptr)
+	if (Cpmponent == nullptr || Cpmponent->SkeletalMesh == nullptr)
 	{
-		return mFaceBound;
+		return;
 	}
 
-	if (Cpmponent->SkeletalMesh == nullptr)
+	FStepDataToSkeletonBinding::FMorphData CurData;
+	for (auto& Temp : MorghTarget)
 	{
-		return mFaceBound;
+		auto Finder = Cpmponent->SkeletalMesh->MorphTargetIndexMap.Find(FName(*Temp.Value));
+		if (Finder)
+		{
+			CurData.MorphValue = 0.f;
+			CurData.StepMarphName = FName(*Temp.Key);
+			CurData.UE4MarphName = FName(*Temp.Value);
+			UE4FaceData.Add(CurData);
+		}
 	}
 
-	for (int32 i = 0; i < Cpmponent->SkeletalMesh->MorphTargets.Num(); i++)
-	{
-		FString MorghName = Cpmponent->SkeletalMesh->MorphTargets[i]->GetName();
-		MorghTarget.Add(MorghName);
-	}
-
-	mFaceBound = MorghTarget.IsValidIndex(0);
-	return mFaceBound;
+	mFaceBound = UE4FaceData.Num() > 0;
 }
 
-bool FStepDataToSkeletonBinding::UpdateFaceFrameData(TMap<FString, float>& outPose)
+void FStepDataToSkeletonBinding::UpdateFaceFrameData()
 {
-	if (!StepMpcapStream.IsValid())
+	if (!CacheServerInfo.EnableFace)
 	{
-		return false;
+		return;
 	}
 
-	StepMpcapStream->GetBonesTransform_Face(outPose);
+	if (!StepMpcapStream.IsValid())
+	{
+		return;
+	}
 
-	return true;
+	auto FacaeData = StepMpcapStream->GetBonesTransform_Face();
+	if (FacaeData.Num() == 0)
+	{
+		return;
+	}
+
+	for (auto& FaceBind : UE4FaceData)
+	{
+		auto FindPtr = FacaeData.Find(FaceBind.StepMarphName.ToString());
+		if (FindPtr)
+		{
+			FaceBind.MorphValue = *FindPtr;
+		}
+	}
 }
 
 bool FStepDataToSkeletonBinding::IsFaceBound()
@@ -421,9 +411,10 @@ bool FStepDataToSkeletonBinding::IsFaceBound()
 	return mFaceBound;
 }
 
-bool FStepDataToSkeletonBinding::IsBodyBound()
+
+const TArray<FStepDataToSkeletonBinding::FMorphData>& FStepDataToSkeletonBinding::GetUE4FaceData()
 {
-	return mBound;
+	return UE4FaceData;
 }
 
 void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
@@ -461,6 +452,11 @@ void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 			break;
 		}
 	}
+}
+
+const TArray<int32>& FStepDataToSkeletonBinding::GetUE4NeedUpdateBones()
+{
+	return UE4NeedUpdateBones;
 }
 
 FStepMocapStream::FStepMocapStream()
@@ -529,14 +525,9 @@ TArray<FRotator>& FStepMocapStream::GetBonesTransform_Hand()
 	return CacheHandFrameData;
 }
 
-void FStepMocapStream::GetBonesTransform_Face(TMap<FString, float>& BonesData)
+TMap<FString, float>& FStepMocapStream::GetBonesTransform_Face()
 {
-	BonesData.Empty();
-
-	if (CacheFaceFrameData.Num() > 0)
-	{
-		BonesData = CacheFaceFrameData;
-	}
+	return CacheFaceFrameData;
 }
 
 bool FStepMocapStream::IsConnected()
@@ -616,9 +607,8 @@ void FStepMocapStream::DisconnectToServer()
 
 	if (StepVrClient.IsValid())
 	{
-		StepVrClient->StopData();
-		StepVrClient->GloEnable(false);
-		StepVrClient.Reset();
+		StepVrClient->DisConnect();
+		StepVrClient = nullptr;
 	}
 
 	FString Message = FString::Printf(TEXT("StepMocapStream Delete : %s"), *UsedServerInfo.ServerIP);

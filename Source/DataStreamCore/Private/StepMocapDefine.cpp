@@ -30,15 +30,17 @@ void ShowMessage(const FString& Log)
 
 FString GetLocalIP()
 {
-	bool CanBind = false;
-	FString IPAddress = "";
-	TSharedRef<FInternetAddr> LocalIp = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, CanBind);
-	if (LocalIp->IsValid())
+	static FString GLocalIP = "";
+	if (GLocalIP.IsEmpty())
 	{
-		IPAddress = LocalIp->ToString(false);
+		bool CanBind = false;
+		TSharedRef<FInternetAddr> LocalIp = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, CanBind);
+		if (LocalIp->IsValid())
+		{
+			GLocalIP = LocalIp->ToString(false);
+		}
 	}
-
-	return IPAddress;
+	return GLocalIP;
 }
 
 FString Convert2LocalIP(const FString& NewIP)

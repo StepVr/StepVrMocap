@@ -14,7 +14,7 @@ class UAnimGraphNode_StepDataStream : public UAnimGraphNode_Base
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings)
 	FAnimNode_StepDataStream Node;
 
-#if WITH_EDITOR
+public:
 	// UEdGraphNode interface
 	FText			GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	FLinearColor	GetNodeTitleColor() const override;
@@ -24,9 +24,6 @@ class UAnimGraphNode_StepDataStream : public UAnimGraphNode_Base
 	// Create any output pins necessary for this node
 	virtual void	CreateOutputPins() override;
 	// End of UEdGraphNode interface
-#endif
-
-
 };
 
 

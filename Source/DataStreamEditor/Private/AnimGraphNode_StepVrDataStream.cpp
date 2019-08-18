@@ -92,8 +92,5 @@ void UAnimGraphNode_StepDataStream::ValidateAnimNodeDuringCompilation(class USke
 
 void UAnimGraphNode_StepDataStream::CreateOutputPins()
 {
-	if (!IsSinkNode())
-	{
-		CreatePin(EGPD_Output, UAnimationGraphSchema::PC_Struct, FComponentSpacePoseLink::StaticStruct(), TEXT("Pose"));
-	}
+	CreatePin(EGPD_Output, UAnimationGraphSchema::PC_Struct, FComponentSpacePoseLink::StaticStruct(), TEXT("Pose"));
 }

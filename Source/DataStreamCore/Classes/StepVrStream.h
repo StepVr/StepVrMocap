@@ -27,9 +27,9 @@ public:
 	void SetServerInfo(const FMocapServerInfo& ServerInfo);
 	const FMocapServerInfo& GetServerInfo();
 
-	TArray<FTransform>&	GetBonesTransform_Body();
-	TArray<FRotator>&	GetBonesTransform_Hand();
-	void GetBonesTransform_Face(TMap<FString,float>& BonesData);
+	TArray<FTransform>&		GetBonesTransform_Body();
+	TArray<FRotator>&		GetBonesTransform_Hand();
+	TMap<FString, float>&	GetBonesTransform_Face();
 
 	bool IsConnected();
 	bool IsBodyConnect();
@@ -80,13 +80,13 @@ public:
 		InValid,
 	};
 
-	struct MapBone
+	struct FMapBone
 	{
 		uint8			StepBoneIndex;
 		int32			UeBoneIndex;
 		EMapBoneType	MapBoneType;
 		FTransform		BoneData;
-		MapBone()
+		FMapBone()
 		{
 			Reset();
 		}
@@ -99,39 +99,40 @@ public:
 		}
 	};
 
+	struct FMorphData
+	{
+		FName StepMarphName;
+		FName UE4MarphName;
+		float MorphValue;
+	};
+
+public:
 	// Default constructor.
 	FStepDataToSkeletonBinding();
 	~FStepDataToSkeletonBinding();
 
 	bool ConnectToServer(const FMocapServerInfo& InServerInfo);
-	bool IsConnected();
 
 	/**
 	 * 全身动捕
 	 */
 	void BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, BoneMappings& BodyBoneReferences, BoneMappings& HandBoneReferences);
-	bool IsBodyBound();
 	void UpdateSkeletonFrameData();
-	const FStepDataToSkeletonBinding::MapBone& GetUE4BoneIndex(int32 SegmentIndex) const;
-	const TArray<FStepDataToSkeletonBinding::MapBone>& GetUE4Bones();
+	const TArray<int32>& GetUE4NeedUpdateBones();
+	const FStepDataToSkeletonBinding::FMapBone& GetUE4BoneIndex(int32 SegmentIndex) const;
+	const TArray<FStepDataToSkeletonBinding::FMapBone>& GetUE4Bones();
 	float GetFigureScale();
-
-	/**
-	 * 手部捕捉
-	 */
-	bool BindToHandSkeleton(FAnimInstanceProxy* AnimInstanceProxy, TMap<FString, FBoneReference>& BoneReferences);
-	bool IsHandBound();
-	int32 GetUE4HandBoneIndex(int32 SegmentIndex) const;
 
 	/**
 	 * 面部捕捉
 	 */
-	bool BindToFaceMorghTarget(FAnimInstanceProxy* AnimInstanceProxy,TArray<FString>& MorghTarget);
-	bool UpdateFaceFrameData(TMap<FString,float>& outPose);
+	void BindToFaceMorghTarget(FAnimInstanceProxy* AnimInstanceProxy, TMap<FString, FString>& MorghTarget);
+	void UpdateFaceFrameData();
 	bool IsFaceBound();
+	const TArray<FStepDataToSkeletonBinding::FMorphData>& GetUE4FaceData();
 
 private:
-	FMocapServerInfo CacheServerInfo;;
+	FMocapServerInfo CacheServerInfo;
 
 	//ServerStream
 	TSharedPtr<FStepMocapStream> StepMpcapStream;
@@ -139,17 +140,11 @@ private:
 	/**
 	 * 全身动捕数据
 	 */
-	TArray<MapBone> UE4BoneIndices;
-	bool mBound = false;
-
-	/**
-	 * 手部动捕数据
-	 */
-	TArray<int32> UE4HandBoneIndices;
-	bool mHandBound = false;
-
+	TArray<FMapBone> UE4BoneIndices;
+	TArray<int32> UE4NeedUpdateBones;
 	/**
 	 * 面部捕捉
 	 */
+	TArray<FStepDataToSkeletonBinding::FMorphData> UE4FaceData;
 	bool mFaceBound = true;
 };

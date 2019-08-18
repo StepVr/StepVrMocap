@@ -6,21 +6,33 @@
 #include "Animation/MorphTarget.h"
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
-
+#include "CoreMiscDefines.h"
 
 
 
 FAnimNode_StepDataStream::FAnimNode_StepDataStream()
 {
-	for (FString Name : StepBoneNames)
+	//身体骨骼
+	for (auto& Name : StepBoneNames)
 	{
 		BindMocapBones.FindOrAdd(Name) = FBoneReference(*Name);
 	}
-	for (FString Name : StepHandBoneNames)
+
+	//手部骨骼
+	for (auto& Name : StepHandBoneNames)
 	{
 		BindMocapHandBones.FindOrAdd(Name) = FBoneReference(*Name);
 	}
 
+	//for (int32 Index = 0; Index < StepHandBoneNames.Num(); Index++)
+	//{
+	//	if (StepHandBoneDelete.Find(Index) == INDEX_NONE)
+	//	{
+	//		BindMocapHandBones.FindOrAdd(StepHandBoneNames[Index]) = FBoneReference(*StepHandBoneNames[Index]);
+	//	}
+	//}
+
+	//面部顶点
 	for (auto& Temp : StepFaceMorphTargets)
 	{
 		BindMorphTarget.Add(Temp, Temp);
@@ -48,7 +60,11 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 
 	if (mSkeletonBinding.ConnectToServer(MocapServerInfo))
 	{
+		//绑定骨骼
 		mSkeletonBinding.BindToSkeleton(AnimInstanceProxy,BindMocapBones, BindMocapHandBones);
+
+		//绑定顶点变形
+		mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, BindMorphTarget);
 	}
 }
 
@@ -84,18 +100,15 @@ void FAnimNode_StepDataStream::IntializeServerStreamer(FAnimInstanceProxy* AnimI
 
 void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	INC_DWORD_STAT(COUNT_Initialize_AnyThread);
+	SCOPE_CYCLE_COUNTER(STAT_Initialize_AnyThread);
+
 	FAnimNode_Base::Initialize_AnyThread(Context);
-	InPose.Initialize(Context);
 
 	// Forward to the incoming pose link.
 	check(Context.AnimInstanceProxy != nullptr);
 
-	MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
-	MocapServerInfo.ServerPort = PortNumber;
-	//MocapServerInfo.EnableBody = EnableBody;
-	MocapServerInfo.EnableHand = EnableHand;
-	MocapServerInfo.EnableFace = EnableFace;
-
+	BuildServerInfo();
 
 	BindServerStream(Context.AnimInstanceProxy);
 }
@@ -103,32 +116,22 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 
 void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FAnimNode_StepDataStream::Update_AnyThread"), STAT_StepMocapUpdate, STATGROUP_Game);
-
-	if (!bReplicatedComponent)
-	{
-		InitReplicateComponet();
-	}
-
-	InPose.Update(Context);
+	SCOPE_CYCLE_COUNTER(STAT_Update_AnyThread);
 
 #if (ENGINE_MAJOR_VERSION>=4) && (ENGINE_MINOR_VERSION>=22)
 	GetEvaluateGraphExposedInputs().Execute(Context);
 #else
 	EvaluateGraphExposedInputs.Execute(Context);
 #endif
-	
 
-	if (mSkeletonBinding.IsConnected())
+	BuildServerInfo();
+	if (mSkeletonBinding.ConnectToServer(MocapServerInfo))
 	{
 		//骨骼数据
 		mSkeletonBinding.UpdateSkeletonFrameData();
 
 		//面部数据
-		if (EnableFace)
-		{
-			mSkeletonBinding.UpdateFaceFrameData(FaceMorphTargetData);
-		}
+		mSkeletonBinding.UpdateFaceFrameData();
 	}
 }
 
@@ -140,76 +143,79 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 
 void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output)
 {
+	SCOPE_CYCLE_COUNTER(STAT_EvaluateComponentSpace_AnyThread);
+
 	Output.ResetToRefPose();
 
 	//更新动捕姿态
-	const FBoneContainer& RequiredBone = Output.AnimInstanceProxy->GetRequiredBones();
-	int32 NumBones = RequiredBone.GetNumBones();
-	for (int32 Index = 0, StepIndex = 0; Index < NumBones; Index++)
+	if (PauseSkeletonCapture == false)
 	{
-		auto MapBoneData = mSkeletonBinding.GetUE4BoneIndex(StepIndex);
-
-		//根节点
-		if (Index == 0)
+		auto AllUpdateBones = mSkeletonBinding.GetUE4NeedUpdateBones();
+		//const FBoneContainer& RequiredBone = Output.AnimInstanceProxy->GetRequiredBones();
+		//int32 NumBones = RequiredBone.GetNumBones();
+		for (int32 Index = 0, StepIndex = 0; Index < AllUpdateBones.Num(); Index++)
 		{
-			FCompactPoseBoneIndex BoneIndex(Index);
-			Output.Pose.SetComponentSpaceTransform(BoneIndex, FTransform::Identity);
-			continue;
-		}
+			auto MapBoneData = mSkeletonBinding.GetUE4BoneIndex(StepIndex);
+			int32 UEIndex = AllUpdateBones[Index];
 
-		//没有匹配的点
-		if (MapBoneData.UeBoneIndex != Index)
-		{
-			FCompactPoseBoneIndex BoneIndex(Index);
-			Output.Pose.CalculateComponentSpaceTransform(BoneIndex);
-			continue;
-		}
+			//根节点
+			if (UEIndex == 0)
+			{
+				FCompactPoseBoneIndex BoneIndex(0);
+				Output.Pose.SetComponentSpaceTransform(BoneIndex, FTransform::Identity);
+				continue;
+			}
 
-		//匹配的点
-		FCompactPoseBoneIndex BoneIndex(MapBoneData.UeBoneIndex);
+			//没有匹配的点
+			if (MapBoneData.UeBoneIndex != UEIndex)
+			{
+				FCompactPoseBoneIndex BoneIndex(UEIndex);
+				Output.Pose.CalculateComponentSpaceTransform(BoneIndex);
+				continue;
+			}
 
-		switch (MapBoneData.MapBoneType)
-		{
-		case FStepDataToSkeletonBinding::EMapBoneType::Bone_Body:
-		{
-			MapBoneData.BoneData.SetToRelativeTransform(FTransform::Identity);
-		}
-		break;
-		case FStepDataToSkeletonBinding::EMapBoneType::Bone_Hand:
-		{
-			MapBoneData.BoneData.SetToRelativeTransform(FTransform::Identity);
-			auto Temp = Output.Pose.GetComponentSpaceTransform(BoneIndex);
-			MapBoneData.BoneData.SetLocation(Temp.GetLocation());
-		}
-		break;
-		}
+			//匹配的点
+			FCompactPoseBoneIndex BoneIndex(MapBoneData.UeBoneIndex);
 
-		Output.Pose.SetComponentSpaceTransform(BoneIndex, MapBoneData.BoneData);
-		StepIndex++;
+			switch (MapBoneData.MapBoneType)
+			{
+			case FStepDataToSkeletonBinding::EMapBoneType::Bone_Body:
+			{
+				MapBoneData.BoneData.SetToRelativeTransform(FTransform::Identity);
+			}
+			break;
+			case FStepDataToSkeletonBinding::EMapBoneType::Bone_Hand:
+			{
+				MapBoneData.BoneData.SetToRelativeTransform(FTransform::Identity);
+				auto Temp = Output.Pose.GetComponentSpaceTransform(BoneIndex);
+				MapBoneData.BoneData.SetLocation(Temp.GetLocation());
+			}
+			break;
+			}
+
+			Output.Pose.SetComponentSpaceTransform(BoneIndex, MapBoneData.BoneData);
+			StepIndex++;
+		}
 	}
 
+
+	//更新面部捕捉
+	USkeletalMeshComponent* SkeletonComponet = Output.AnimInstanceProxy->GetSkelMeshComponent();
+	if (SkeletonComponet)
+	{
+		auto FaceBindData = mSkeletonBinding.GetUE4FaceData();
+		for (auto& TempItr : FaceBindData)
+		{
+			SkeletonComponet->SetMorphTarget(TempItr.UE4MarphName, TempItr.MorphValue);
+		}
+	}
 }
 
-void FAnimNode_StepDataStream::CacheBones_AnyThread(const FAnimationCacheBonesContext & Context)
-{
-	InPose.CacheBones(Context);
-}
-
-void FAnimNode_StepDataStream::OverrideAsset(class UAnimationAsset* NewAsset)
-{
-// 	USkeletalMesh* Skeleton= NewAsset->GetPreviewMesh();
-// 
-// 	for (int32 i = 0; i < Skeleton->MorphTargets.Num(); i++)
-// 	{
-// 		FString MorghName = Skeleton->MorphTargets[i]->GetName();
-// 		BindMorphTarget.Add(MorghName,FStepFaceMorghs::Expressions_abdomExpansion_max);
-// 	}
-}
-
-void FAnimNode_StepDataStream::PostCompile(const USkeleton * InSkeleton)
-{
-	//BindMorphTarget.Add(TEXT("asdasd"), FStepFaceMorghs::Expressions_abdomExpansion_max);
-}
+//void FAnimNode_StepDataStream::CacheBones_AnyThread(const FAnimationCacheBonesContext & Context)
+//{
+//	FAnimNode_Base::CacheBones_AnyThread(Context);
+//	InPose.CacheBones(Context);
+//}
 
 void FAnimNode_StepDataStream::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
@@ -220,31 +226,11 @@ void FAnimNode_StepDataStream::OnInitializeAnimInstance(const FAnimInstanceProxy
 	CacheAnimInstanceProxy = InProxy;
 }
 
-void FAnimNode_StepDataStream::InitReplicateComponet()
+void FAnimNode_StepDataStream::BuildServerInfo()
 {
-	if (OwnerPawn == nullptr)
-	{
-		return;
-	}
-
-	if (!OwnerPawn->HasActorBegunPlay())
-	{
-		return;
-	}
-
-	ReplicatedComponent = Cast<UStepReplicatedComponent>(OwnerPawn->GetComponentByClass(UStepReplicatedComponent::StaticClass()));
-	if (ReplicatedComponent == nullptr)
-	{
-		bReplicatedComponent = true;
-		return;
-	}
-
-	if (ReplicatedComponent->PlayerAddr.Equals(REPLICATE_NONE))
-	{
-		return;
-	}
-
-	MocapServerInfo.ServerIP = Convert2LocalIP(ReplicatedComponent->PlayerAddr);
-	mSkeletonBinding.ConnectToServer(MocapServerInfo);
-	bReplicatedComponent = true;
+	MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
+	MocapServerInfo.ServerPort = PortNumber;
+	//MocapServerInfo.EnableBody = EnableBody;
+	MocapServerInfo.EnableHand = EnableHand;
+	MocapServerInfo.EnableFace = EnableFace;
 }
