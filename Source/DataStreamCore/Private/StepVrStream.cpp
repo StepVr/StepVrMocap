@@ -9,8 +9,9 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/MorphTarget.h"
 #include "Misc/CoreDelegates.h"
+#include "Kismet/KismetMathLibrary.h"
 
-
+//#define ADDDETALTIME = 0.5f;
 /**
  * 当前帧从Service获取的数据
  */
@@ -458,22 +459,40 @@ void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 	}
 	else
 	{
-		auto FindData = GReplicateSkeletonRT.Find(CacheServerInfo.AddrValue);
-		if (FindData == nullptr)
+		TArray<FTransform> SkeletonData;
 		{
-			return;
+			FScopeLock Lock(&GReplicateSkeletonCS);
+			auto FindData = GReplicateSkeletonRT.Find(CacheServerInfo.AddrValue);
+			if (FindData == nullptr)
+			{
+				return;
+			}
+
+			SkeletonData = *FindData;
 		}
 
-		TArray<FTransform> SkeletonData = *FindData;
 		if (SkeletonData.Num() != STEPBONESNUMS)
 		{
 			return;
 		}
 
+		//double CurDetal = GWorld ? GWorld->GetDeltaSeconds() : 0.014f;
+		//if (CurFrame == GUpdateReplicateSkeleton)
+		//{
+		//	DetalTime += CurDetal;
+		//}
+		//else
+		//{
+		//	CurFrame = GUpdateReplicateSkeleton;
+		//	DetalTime = CurDetal;
+		//}
+
 		for (auto& Temp : UE4BoneIndices)
 		{
 			if (Temp.MapBoneType == EMapBoneType::Bone_Body)
 			{
+				//FTransform Tlerp = UKismetMathLibrary::TLerp(Temp.BoneData, SkeletonData[Temp.StepBoneIndex],CurFrame);
+				//Temp.BoneData = Tlerp;
 				Temp.BoneData = SkeletonData[Temp.StepBoneIndex];
 			}
 		}

@@ -144,4 +144,8 @@ private:
 	 */
 	TArray<FStepDataToSkeletonBinding::FMorphData> UE4FaceData;
 	bool mFaceBound = true;
+
+	//联网
+	uint64 CurFrame = 0;
+	double DetalTime = 0.f;
 };

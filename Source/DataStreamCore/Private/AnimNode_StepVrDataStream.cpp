@@ -216,7 +216,8 @@ void FAnimNode_StepDataStream::OnInitializeAnimInstance(const FAnimInstanceProxy
 
 void FAnimNode_StepDataStream::BuildServerInfo()
 {
-	MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
+	//MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
+	MocapServerInfo.ServerIP = ServerName.ToString();
 	MocapServerInfo.ServerPort = PortNumber;
 	//MocapServerInfo.EnableBody = EnableBody;
 	MocapServerInfo.EnableHand = EnableHand;
