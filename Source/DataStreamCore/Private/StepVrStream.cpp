@@ -268,25 +268,22 @@ void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 	/**
 	* 手部骨骼
 	*/
-	if (CacheServerInfo.EnableHand)
+	for (int32 Index = 0; Index < StepHandBoneNames.Num(); Index++)
 	{
-		for (int32 Index = 0; Index < StepHandBoneNames.Num(); Index++)
+		FBoneReference* Ref = HandBoneReferences.Find(StepHandBoneNames[Index]);
+		if (Ref == nullptr)
 		{
-			FBoneReference* Ref = HandBoneReferences.Find(StepHandBoneNames[Index]);
-			if (Ref == nullptr)
-			{
-				continue;
-			}
+			continue;
+		}
 
-			Ref->Initialize(Skeleton);
+		Ref->Initialize(Skeleton);
 
-			if (Ref->HasValidSetup())
-			{
-				CurMapBone.MapBoneType = EMapBoneType::Bone_Hand;
-				CurMapBone.StepBoneIndex = Index;
-				CurMapBone.UeBoneIndex = Ref->BoneIndex;
-				UE4BoneIndices.Add(CurMapBone);
-			}
+		if (Ref->HasValidSetup())
+		{
+			CurMapBone.MapBoneType = EMapBoneType::Bone_Hand;
+			CurMapBone.StepBoneIndex = Index;
+			CurMapBone.UeBoneIndex = Ref->BoneIndex;
+			UE4BoneIndices.Add(CurMapBone);
 		}
 	}
 
