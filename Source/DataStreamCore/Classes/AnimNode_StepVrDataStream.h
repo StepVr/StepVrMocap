@@ -107,8 +107,8 @@ private:
 	const APawn* OwnerPawn = nullptr;
 
 	//联机
+	FStepControllState StepControllState = FStepControllState::Local_Replicate_N;
 	bool IsInit = false;
-	bool IsLocal = true;
 	uint32 AddrValue = 0;
 };
 

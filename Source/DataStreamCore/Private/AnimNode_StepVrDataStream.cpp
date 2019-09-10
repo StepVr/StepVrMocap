@@ -89,6 +89,7 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	if (GWorld->WorldType == EWorldType::Editor)
 	{
 		IsInit = true;
+		StepControllState = FStepControllState::Local_Replicate_N;
 		Connected();
 	}
 #endif
@@ -220,9 +221,11 @@ void FAnimNode_StepDataStream::BuildServerInfo()
 	MocapServerInfo.ServerIP = ServerName.ToString();
 	MocapServerInfo.ServerPort = PortNumber;
 	//MocapServerInfo.EnableBody = EnableBody;
+
 	MocapServerInfo.EnableHand = EnableHand;
 	MocapServerInfo.EnableFace = EnableFace;
-	MocapServerInfo.IsLocal = IsLocal;
+
+	MocapServerInfo.StepControllState = StepControllState;
 	MocapServerInfo.AddrValue = AddrValue;
 }
 
@@ -234,6 +237,14 @@ void FAnimNode_StepDataStream::CheckInit()
 	{
 		if (!IsValid(OwnerPawn))
 		{
+			//Finish 不是角色
+			IsInit = true;
+			StepControllState = FStepControllState::Local_Replicate_N;
+			break;
+		}
+
+		if (!OwnerPawn->HasActorBegunPlay())
+		{
 			break;
 		}
 
@@ -241,19 +252,31 @@ void FAnimNode_StepDataStream::CheckInit()
 		OwnerPawn->GetComponents(Coms);
 		if (Coms.Num() == 0)
 		{
+			//Finish 没有添加组件，无法同步
+			IsInit = true;
+			StepControllState = FStepControllState::Local_Replicate_N;
 			break;
 		}
 
 		UStepVrComponent* TargetCom = Coms[0];
+		if (!TargetCom->bMocapReplicate)
+		{
+			//Finish 不需要同步
+			IsInit = true;
+			StepControllState = FStepControllState::Local_Replicate_N;
+			break;
+		}
+
 		if (!TargetCom->IsInitialization())
 		{
 			break;
 		}
 
-		IsLocal = TargetCom->IsLocalControlled();
-		if (IsLocal)
+		if (TargetCom->IsLocalControlled())
 		{
+			//Finish 本地角色
 			IsInit = true;
+			StepControllState = FStepControllState::Local_Replicate_Y;
 			break;
 		}
 
@@ -262,8 +285,9 @@ void FAnimNode_StepDataStream::CheckInit()
 			break;
 		}
 
-		AddrValue = TargetCom->GetPlayerAddr();
 		IsInit = true;
+		AddrValue = TargetCom->GetPlayerAddr();
+		StepControllState = FStepControllState::Remote_Replicate_Y;	
 	} while (0);
 
 	if (IsInit)

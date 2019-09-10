@@ -26,9 +26,12 @@ FString Convert2LocalIP(const FString& NewIP);
  */
 enum FStepControllState
 {
-	Invalid,
-	Local,
-	Remote,
+	//读配置IP
+	Local_Replicate_N,
+	//读配置IP，发送数据
+	Local_Replicate_Y,
+	//读远端数据
+	Remote_Replicate_Y,
 };
 
 
@@ -44,7 +47,7 @@ struct FMocapServerInfo
 	bool EnableFace;
 
 	//同步
-	bool IsLocal;
+	FStepControllState StepControllState;
 	uint32 AddrValue;
 
 	FMocapServerInfo():
@@ -52,9 +55,9 @@ struct FMocapServerInfo
 		ServerPort(0),
 		EnableHand(false),
 		EnableFace(false),
-		IsLocal(true),
 		AddrValue(0)
 	{
+		StepControllState = FStepControllState::Local_Replicate_N;
 	};
 
 	bool IsEmpty() const

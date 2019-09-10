@@ -188,7 +188,18 @@ bool FStepDataToSkeletonBinding::ConnectToServer(const FMocapServerInfo& InServe
 		return false;
 	}
 
-	if (InServerInfo.IsLocal)
+	//远端模拟
+	if (InServerInfo.StepControllState == Remote_Replicate_Y)
+	{
+		CacheServerInfo = InServerInfo;
+
+		if (StepMpcapStream.IsValid())
+		{
+			StepMocapServers::ReturnStream(StepMpcapStream.ToSharedRef());
+			StepMpcapStream.Reset();
+		}
+	}
+	else
 	{
 		if (CacheServerInfo.IsEqual(InServerInfo))
 		{
@@ -216,17 +227,6 @@ bool FStepDataToSkeletonBinding::ConnectToServer(const FMocapServerInfo& InServe
 
 		return StepMpcapStream.IsValid();
 	}
-	else
-	{
-		CacheServerInfo = InServerInfo;
-
-		if (StepMpcapStream.IsValid())
-		{
-			StepMocapServers::ReturnStream(StepMpcapStream.ToSharedRef());
-			StepMpcapStream.Reset();
-		}
-	}
-
 
 	return true;
 }
@@ -421,7 +421,36 @@ const TArray<FStepDataToSkeletonBinding::FMorphData>& FStepDataToSkeletonBinding
 
 void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 {
-	if (CacheServerInfo.IsLocal)
+	if (CacheServerInfo.StepControllState == Remote_Replicate_Y)
+	{
+		TArray<FTransform> SkeletonData;
+		{
+			FScopeLock Lock(&GReplicateSkeletonCS);
+			auto FindData = GReplicateSkeletonRT.Find(CacheServerInfo.AddrValue);
+			if (FindData == nullptr)
+			{
+				return;
+			}
+
+			SkeletonData = *FindData;
+		}
+
+		if (SkeletonData.Num() != STEPBONESNUMS)
+		{
+			return;
+		}
+
+		for (auto& Temp : UE4BoneIndices)
+		{
+			if (Temp.MapBoneType == EMapBoneType::Bone_Body)
+			{
+				//FTransform Tlerp = UKismetMathLibrary::TLerp(Temp.BoneData, SkeletonData[Temp.StepBoneIndex],CurFrame);
+				//Temp.BoneData = Tlerp;
+				Temp.BoneData = SkeletonData[Temp.StepBoneIndex];
+			}
+		}
+	}
+	else
 	{
 		if (!StepMpcapStream.IsValid())
 		{
@@ -457,47 +486,6 @@ void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 			}
 		}
 	}
-	else
-	{
-		TArray<FTransform> SkeletonData;
-		{
-			FScopeLock Lock(&GReplicateSkeletonCS);
-			auto FindData = GReplicateSkeletonRT.Find(CacheServerInfo.AddrValue);
-			if (FindData == nullptr)
-			{
-				return;
-			}
-
-			SkeletonData = *FindData;
-		}
-
-		if (SkeletonData.Num() != STEPBONESNUMS)
-		{
-			return;
-		}
-
-		//double CurDetal = GWorld ? GWorld->GetDeltaSeconds() : 0.014f;
-		//if (CurFrame == GUpdateReplicateSkeleton)
-		//{
-		//	DetalTime += CurDetal;
-		//}
-		//else
-		//{
-		//	CurFrame = GUpdateReplicateSkeleton;
-		//	DetalTime = CurDetal;
-		//}
-
-		for (auto& Temp : UE4BoneIndices)
-		{
-			if (Temp.MapBoneType == EMapBoneType::Bone_Body)
-			{
-				//FTransform Tlerp = UKismetMathLibrary::TLerp(Temp.BoneData, SkeletonData[Temp.StepBoneIndex],CurFrame);
-				//Temp.BoneData = Tlerp;
-				Temp.BoneData = SkeletonData[Temp.StepBoneIndex];
-			}
-		}
-	}
-
 }
 
 const TArray<int32>& FStepDataToSkeletonBinding::GetUE4NeedUpdateBones()
@@ -637,7 +625,8 @@ void FStepMocapStream::EngineBegineFrame()
 		ConvertToUE(GStepMocapData, CacheBodyFrameData);
 
 		//同步数据
-		if (UsedServerInfo.IsLocal && STEPVR_SERVER_IsValid)
+		if (UsedServerInfo.StepControllState == FStepControllState::Local_Replicate_Y && 
+			STEPVR_SERVER_IsValid)
 		{
 			STEPVR_SERVER->StepMocapSendData(CacheBodyFrameData);
 		}
