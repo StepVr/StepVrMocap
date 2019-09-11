@@ -3,6 +3,7 @@
 #include "StepVrDataStreamModule.h"
 #include "Engine.h"
 #include "StepMocapDefine.h"
+#include "StepVrSkt.h"
 
 
 
@@ -19,6 +20,9 @@ void FreeHandle()
 
 void FStepDataStreamModule::StartupModule()
 {
+	//加载动捕skt
+	STEPVRSKT->LoadSkt();
+
 	//加载面捕数据
 	LoadMorphTargets();
 

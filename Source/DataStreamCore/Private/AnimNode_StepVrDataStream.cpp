@@ -2,12 +2,15 @@
 #include "AnimNode_StepVrDataStream.h"
 #include "StepVrReplicatedComponent.h"
 #include "StepVrComponent.h"
+#include "StepVrSkt.h"
+
 
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/MorphTarget.h"
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
 #include "CoreMiscDefines.h"
+
 
 
 
@@ -66,6 +69,30 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 	}
 
 	//绑定骨骼
+	auto Skeletons = STEPVRSKT->GetSktRetarget(SktName);
+	if(Skeletons.Num() == (STEPHANDBONESNUMS + STEPBONESNUMS)){
+
+		int32 Index = 0;
+		
+		//身体骨骼
+		for (auto& Name : StepBoneNames)
+		{
+			BindMocapBones.FindOrAdd(Name) = FBoneReference(*Skeletons[Index]);
+			Index++;
+		}
+
+		//手部骨骼
+		for (auto& Name : StepHandBoneNames)
+		{
+			BindMocapHandBones.FindOrAdd(Name) = FBoneReference(*Skeletons[Index]);
+			Index++;
+		}
+	}
+
+	if (!EnableHand)
+	{
+		BindMocapHandBones.Empty();
+	}
 	mSkeletonBinding.BindToSkeleton(AnimInstanceProxy, BindMocapBones, BindMocapHandBones);
 
 	//绑定顶点变形
@@ -137,7 +164,7 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 	}
 
 	//更新动捕姿态
-	if (PauseSkeletonCapture == false)
+	if (StopSkeletonCapture == false)
 	{
 		auto AllUpdateBones = mSkeletonBinding.GetUE4NeedUpdateBones();
 		//const FBoneContainer& RequiredBone = Output.AnimInstanceProxy->GetRequiredBones();

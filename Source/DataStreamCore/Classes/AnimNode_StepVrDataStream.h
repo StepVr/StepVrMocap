@@ -19,10 +19,30 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	//FPoseLink InPose;
 	
 	/**
-	 * 暂停骨骼动捕
+	 * 是否关闭全身捕捉
+	 * Override : EnableHand
 	 */
-	UPROPERTY(EditAnywhere, Category = StepMocapBindBones)
-	bool	PauseSkeletonCapture = false;
+	UPROPERTY(EditAnywhere, Category = StepServer)
+	bool StopSkeletonCapture = false;
+	
+	/**
+	* 是否开启手部捕捉
+	*/
+	UPROPERTY(EditAnywhere, Category = StepServer)
+	bool EnableHand = false;
+
+	/**
+	* 是否开启面部捕捉
+	*/
+	UPROPERTY(EditAnywhere, Category = StepServer)
+	bool EnableFace = false;
+
+	/**
+	* 骨骼没有Skt文件，填空，使用BindMocapBones|BindMocapHandBones
+	* 骨骼有Skt文件，设置对应文件名，文件存放path:\Plugins\StepVrMocap\ThirdParty\skt\
+	*/
+	UPROPERTY(EditAnywhere, Category = StepServer)
+	FString SktName = TEXT("");
 
 	/**
 	 * Step修改身体 22 根骨骼点
@@ -51,29 +71,8 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	UPROPERTY(EditAnywhere, Category=Server, meta=(PinShownByDefault))
 	FName ServerName = TEXT("127.0.0.1");
 
-	UPROPERTY(EditAnywhere, Category=Server,meta=(PinShownByDefault))
+	UPROPERTY(EditAnywhere, Category=Server)
 	int32 PortNumber = 9516;
-
-	//UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
-	//bool ApplyStepScale = false;
-
-	/**
-	 * 是否开启身体捕捉
-	 */
-	//UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
-	//bool EnableBody = true;
-
-	/**
-	* 是否开启手部捕捉
-	*/
-	UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
-	bool EnableHand = false;
-
-	/**
-	* 是否开启面部捕捉
-	*/
-	UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
-	bool EnableFace = false;
 
 public:	
 
