@@ -68,9 +68,23 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	UPROPERTY(EditAnywhere, Category = StepMocapBindBones)
 	TMap<FString, FString>	BindMorphTarget;
 
+	/**
+	 * 服务器IP
+	 * 支持局域网IP
+	 */
 	UPROPERTY(EditAnywhere, Category=Server, meta=(PinShownByDefault))
 	FName ServerName = TEXT("127.0.0.1");
 
+	/**
+	 * 是否根据TPOSE缩放骨骼
+	 */
+	UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault))
+	bool ApplyScale = false;
+
+	/**
+	 * 服务器端口号
+	 * 暂时默认无需修改
+	 */
 	UPROPERTY(EditAnywhere, Category=Server)
 	int32 PortNumber = 9516;
 
@@ -102,8 +116,9 @@ private:
 	FMocapServerInfo MocapServerInfo;
 
 	//缓存数据
-	const FAnimInstanceProxy* CacheAnimInstanceProxy = nullptr;
-	const APawn* OwnerPawn = nullptr;
+	const FAnimInstanceProxy*	CacheAnimInstanceProxy = nullptr;
+	const APawn*				CacheOwnerPawn = nullptr;
+	FVector						CacheSkeletonScale;
 
 	//联机
 	FStepControllState StepControllState = FStepControllState::Local_Replicate_N;

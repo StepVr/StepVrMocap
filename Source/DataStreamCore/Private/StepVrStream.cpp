@@ -99,6 +99,7 @@ void ConvertToUE(transform* InData, TArray<FTransform>& OutData)
 
 	FVector TempVec;
 	FQuat TempQuat;
+	FVector TempScale;
 
 	static const FQuat QBA = FQuat::FQuat(FVector(0, 0, 1), PI);
 	static const FQuat QTE = FQuat::FQuat(FVector(0, 0, 1), -PI / 2.0).Inverse()*FQuat::FQuat(FVector(1, 0, 0), -PI / 2.0).Inverse();
@@ -122,18 +123,23 @@ void ConvertToUE(transform* InData, TArray<FTransform>& OutData)
 			break;
 		}
 
-		OutData.Add(FTransform(TempQuat, TempVec));
-		//TempData.SetLocation(TempVec);
-		//TempData.SetRotation(TempQuat);
+		//根骨骼缩放
+		if (i == 0)
+		{
+			TempScale.X = InData[i].Scale.x;
+			TempScale.Y = InData[i].Scale.y;
+			TempScale.Z = InData[i].Scale.z;
+		}else
+		{
+			TempScale = FVector::OneVector;
+		}
+
+		OutData.Add(FTransform(TempQuat, TempVec, TempScale));
 	}
 
 	if (OutData.Num() != STEPBONESNUMS)
 	{
 		OutData.Empty();
-	}
-	else
-	{
-		OutData[0] = FTransform::Identity;
 	}
 }
 void ConvertToUE(V4* InData, TArray<FRotator>& OutData)
@@ -323,11 +329,6 @@ void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 	
 }
 
-float FStepDataToSkeletonBinding::GetFigureScale()
-{
-	return 1.f;
-}
-
 // Access the UE4 bone index given the bone def index.
 const FStepDataToSkeletonBinding::FMapBone& FStepDataToSkeletonBinding::GetUE4BoneIndex(int32 boneDefIndex) const
 {
@@ -416,6 +417,11 @@ const TArray<FStepDataToSkeletonBinding::FMorphData>& FStepDataToSkeletonBinding
 	return UE4FaceData;
 }
 
+const FVector& FStepDataToSkeletonBinding::GetSkeletonScale()
+{
+	return SkeletonScale;
+}
+
 void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 {
 	if (CacheServerInfo.StepControllState == Remote_Replicate_Y)
@@ -460,6 +466,13 @@ void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 		auto HandData = StepMpcapStream->GetBonesTransform_Hand();
 		bool bHandData = CacheServerInfo.EnableHand && HandData.Num() == STEPHANDBONESNUMS;
 
+		//动捕缩放
+		if (bBodyData)
+		{
+			SkeletonScale = BodyData[0].GetScale3D();
+		}
+
+		//动捕数据
 		for (auto& Temp : UE4BoneIndices)
 		{
 			switch (Temp.MapBoneType)
@@ -662,7 +675,11 @@ void FStepMocapStream::EngineBegineFrame()
 
 void FStepMocapStream::UpdateFrameData_Body()
 {
+	//修改根骨骼缩放
+	V3 CurScale;
+	StepVrClient->GetLossyScale(&CurScale);
 	StepVrClient->getData((transform*)GStepMocapData);
+	GStepMocapData[0].Scale = CurScale;
 }
 
 void FStepMocapStream::UpdateFrameData_Hand()

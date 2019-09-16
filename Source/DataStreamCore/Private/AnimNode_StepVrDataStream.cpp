@@ -10,6 +10,8 @@
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
 #include "CoreMiscDefines.h"
+#include "AnimationRuntime.h"
+#include "Async.h"
 
 
 
@@ -69,23 +71,26 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 	}
 
 	//绑定骨骼
-	auto Skeletons = STEPVRSKT->GetSktRetarget(SktName);
-	if(Skeletons.Num() == (STEPHANDBONESNUMS + STEPBONESNUMS)){
+	if (!SktName.IsEmpty())
+	{
+		auto Skeletons = STEPVRSKT->GetSktRetarget(SktName);
+		if (Skeletons.Num() == (STEPHANDBONESNUMS + STEPBONESNUMS)) {
 
-		int32 Index = 0;
-		
-		//身体骨骼
-		for (auto& Name : StepBoneNames)
-		{
-			BindMocapBones.FindOrAdd(Name) = FBoneReference(*Skeletons[Index]);
-			Index++;
-		}
+			int32 Index = 0;
 
-		//手部骨骼
-		for (auto& Name : StepHandBoneNames)
-		{
-			BindMocapHandBones.FindOrAdd(Name) = FBoneReference(*Skeletons[Index]);
-			Index++;
+			//身体骨骼
+			for (auto& Name : StepBoneNames)
+			{
+				BindMocapBones.FindOrAdd(Name) = FBoneReference(*Skeletons[Index]);
+				Index++;
+			}
+
+			//手部骨骼
+			for (auto& Name : StepHandBoneNames)
+			{
+				BindMocapHandBones.FindOrAdd(Name) = FBoneReference(*Skeletons[Index]);
+				Index++;
+			}
 		}
 	}
 
@@ -163,9 +168,13 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 		return;
 	}
 
+	//Scale 
+	FVector CurScale = mSkeletonBinding.GetSkeletonScale();
+
 	//更新动捕姿态
 	if (StopSkeletonCapture == false)
 	{
+		//修改骨骼
 		auto AllUpdateBones = mSkeletonBinding.GetUE4NeedUpdateBones();
 		//const FBoneContainer& RequiredBone = Output.AnimInstanceProxy->GetRequiredBones();
 		//int32 NumBones = RequiredBone.GetNumBones();
@@ -209,11 +218,30 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 			break;
 			}
 
+			if (ApplyScale && CurScale.X > 0.1f)
+			{
+				MapBoneData.BoneData.ScaleTranslation(1.f / CurScale.X);
+			}
 			Output.Pose.SetComponentSpaceTransform(BoneIndex, MapBoneData.BoneData);
 			StepIndex++;
 		}
 	}
 
+	//Scale
+	if (GWorld->WorldType != EWorldType::Editor)
+	{
+		if (ApplyScale && (!CacheSkeletonScale.Equals(CurScale)) && (CurScale.X > 0.1f))
+		{
+			CacheSkeletonScale = CurScale;
+			AsyncTask(ENamedThreads::GameThread, [&]()
+			{
+				if (CacheAnimInstanceProxy && CacheAnimInstanceProxy->GetSkelMeshComponent())
+				{
+					CacheAnimInstanceProxy->GetSkelMeshComponent()->SetWorldScale3D(CacheSkeletonScale);
+				}
+			});
+		}
+	}
 
 	//更新面部捕捉
 	USkeletalMeshComponent* SkeletonComponet = Output.AnimInstanceProxy->GetSkelMeshComponent();
@@ -237,7 +265,7 @@ void FAnimNode_StepDataStream::OnInitializeAnimInstance(const FAnimInstanceProxy
 {
 	Super::OnInitializeAnimInstance(InProxy, InAnimInstance);
 
-	OwnerPawn = Cast<APawn>(InAnimInstance->GetOwningActor());	
+	CacheOwnerPawn = Cast<APawn>(InAnimInstance->GetOwningActor());	
 
 	CacheAnimInstanceProxy = InProxy;
 }
@@ -262,7 +290,7 @@ void FAnimNode_StepDataStream::CheckInit()
 
 	do 
 	{
-		if (!IsValid(OwnerPawn))
+		if (!IsValid(CacheOwnerPawn))
 		{
 			//Finish 不是角色
 			IsInit = true;
@@ -270,13 +298,13 @@ void FAnimNode_StepDataStream::CheckInit()
 			break;
 		}
 
-		if (!OwnerPawn->HasActorBegunPlay())
+		if (!CacheOwnerPawn->HasActorBegunPlay())
 		{
 			break;
 		}
 
 		TArray<UStepVrComponent*> Coms;
-		OwnerPawn->GetComponents(Coms);
+		CacheOwnerPawn->GetComponents(Coms);
 		if (Coms.Num() == 0)
 		{
 			//Finish 没有添加组件，无法同步

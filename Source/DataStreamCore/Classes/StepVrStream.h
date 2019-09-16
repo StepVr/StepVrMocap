@@ -117,7 +117,6 @@ public:
 	const TArray<int32>& GetUE4NeedUpdateBones();
 	const FStepDataToSkeletonBinding::FMapBone& GetUE4BoneIndex(int32 SegmentIndex) const;
 	const TArray<FStepDataToSkeletonBinding::FMapBone>& GetUE4Bones();
-	float GetFigureScale();
 
 	/**
 	 * 面部捕捉
@@ -127,12 +126,22 @@ public:
 	bool IsFaceBound();
 	const TArray<FStepDataToSkeletonBinding::FMorphData>& GetUE4FaceData();
 
+	/**
+	 * 骨骼缩放
+	 */
+	const FVector& GetSkeletonScale();
+
 private:
 	FMocapServerInfo CacheServerInfo;
 
 	
 	//ServerStream
 	TSharedPtr<FStepMocapStream> StepMpcapStream;
+
+	/**
+	 * 当前骨骼缩放
+	 */
+	FVector SkeletonScale;
 
 	/**
 	 * 全身动捕数据

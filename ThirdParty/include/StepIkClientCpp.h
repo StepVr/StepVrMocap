@@ -112,10 +112,11 @@ public:
 	int GetTPoseStatus();//返回值：参考TPoseStatus
 	int GetRegStatus();//返回值：参考RegisterStatus
 	
-
+	void GetLossyScale(V3 * scale);
 	void getData(transform * data);//22个骨骼值
 	
 								   //获得手指各关节姿态的方法 1. GloEnable(true);GloSetDir(i_dir);  2. 在主循环调用GetGloveData
+	void GetGloveM(V4 * data);//30个4元数（前15个为左手的，后15个是右手的，手指顺序和GetGloveData的相同）
 	void GetGloveData(V4 * data); //32个4元数（前16个为：左手手掌，左手拇指从内向外三个关节，食指三个关节，中指三关节，无名指三关节，小指三关节。后16个为右手的，顺序和左手相同）
 	void GloEnable(bool enable);//开启、关闭手套数据
 	void GloSetDir(int i_dir);//设置航向角
@@ -152,6 +153,8 @@ extern "C" {
 
 	STEPIK_DLL_API void getData(transform * data);
 	
+	STEPIK_DLL_API void GetLossyScale(V3 * scale);
+	STEPIK_DLL_API void GetGloveM(V4 * data);
 	STEPIK_DLL_API void GetGloveData(V4 * data);
 	STEPIK_DLL_API void GloEnable(bool enable);
 	STEPIK_DLL_API void GloSetDir(int i_dir);

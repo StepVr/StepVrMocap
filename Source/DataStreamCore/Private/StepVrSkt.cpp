@@ -49,15 +49,36 @@ void FStepVrSkt::AddFiles(FString& FileName, TArray<FString>& SkeletonID)
 	AllFiles.FindOrAdd(FileName) = SkeletonID;
 }
 
-TArray<FString>& FStepVrSkt::GetSktRetarget(const FString& FileName)
+TArray<FString>& FStepVrSkt::GetSktRetarget(FString& FileName)
 {
+	static TArray<FString> TempPtr;
+
 	auto Ptr = AllFiles.Find(FileName);
-	if (Ptr != NULL)
+	if (Ptr == NULL)
+	{
+		TempPtr.Empty();
+		AppendSkt(FileName, TempPtr);
+	}
+	else
 	{
 		return *Ptr;
 	}
 
-	static TArray<FString> TempPtr;
 	return TempPtr;
+}
+
+void FStepVrSkt::AppendSkt(FString& FileName, TArray<FString>& OutData)
+{
+	FString SktPath = FPaths::ProjectPluginsDir().
+		Append("/StepVrMocap/ThirdParty/skt/").
+		Append(FileName).Append(".txt");
+
+	if (FPaths::FileExists(SktPath))
+	{
+		OutData.Empty();
+		FFileHelper::LoadFileToStringArray(OutData, *SktPath);
+
+		AddFiles(FileName, OutData);
+	}
 }
 

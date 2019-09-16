@@ -12,8 +12,10 @@ public:
 
 	void LoadSkt();
 	void AddFiles(FString& FileName, TArray<FString>& SkeletonID);
-	TArray<FString>& GetSktRetarget(const FString& FileName);
+	TArray<FString>& GetSktRetarget(FString& FileName);
 
 private:
+	void AppendSkt(FString& FileName, TArray<FString>& OutData);
+
 	SktFiles AllFiles;
 };

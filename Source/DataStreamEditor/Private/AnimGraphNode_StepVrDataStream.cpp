@@ -109,7 +109,8 @@ void UAnimGraphNode_StepDataStream::ValidateAnimNodeDuringCompilation(class USke
 					continue;
 				}
 
-				if (ArySkt[Index].Equals(TEXT("None")))
+				if (ArySkt[Index].Equals(TEXT("null")) ||
+					ArySkt[Index].Equals(TEXT("None")))
 				{
 					continue;
 				}
@@ -126,6 +127,7 @@ void UAnimGraphNode_StepDataStream::ValidateAnimNodeDuringCompilation(class USke
 			{
 				MessageLog.Note(*temp);
 			}
+
 			if (NoteMessage.IsValidIndex(0))
 			{
 				MessageLog.Warning(TEXT("Use Skt, Skt Error!"));
