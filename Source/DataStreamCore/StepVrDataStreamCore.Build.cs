@@ -43,6 +43,9 @@ public class StepVrDataStreamCore : ModuleRules
         OptimizeCode = CodeOptimization.InShippingBuildsOnly;
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+        //初始化
+        InitStepMagic(false);
+
         PrivateIncludePaths.AddRange( new string[] 
         {
             "DataStreamCore/Private",
@@ -76,6 +79,15 @@ public class StepVrDataStreamCore : ModuleRules
             PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "StepIKClientDllCPP.lib"));
 
             ReferenceDlls();
+        }
+    }
+
+    public void InitStepMagic(bool IsValid)
+    {
+        if (Target.Platform == UnrealTargetPlatform.Win64 && IsValid)
+        {
+            PublicDefinitions.Add("WITH_STEPMAGIC");
+            PrivateDependencyModuleNames.Add("AJA_Corvid44");
         }
     }
 }
