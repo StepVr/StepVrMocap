@@ -44,7 +44,7 @@ public class StepVrDataStreamCore : ModuleRules
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
         //初始化
-        InitStepMagic(true);
+        InitStepMagic(false);
 
         PrivateIncludePaths.AddRange( new string[] 
         {
