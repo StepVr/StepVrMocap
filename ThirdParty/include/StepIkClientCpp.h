@@ -8,7 +8,7 @@
 #include <string>
 
 
-#if WITH_STEPMAGIC
+#ifdef WITH_STEPMAGIC
 #include "VirtualShootingDll.h"
 #else
 struct V3
