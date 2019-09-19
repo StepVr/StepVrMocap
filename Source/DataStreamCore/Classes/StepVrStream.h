@@ -1,13 +1,11 @@
 ﻿// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
 #pragma once
 
-
 #include "StepMocapDefine.h"
 #include "Animation/AnimNodeBase.h"
 
 
-class StepIK_Client;
-struct FStepVRPNChar;
+class StepVrDataServer;
 
 typedef TMap<FString, FBoneReference> BoneMappings;
 
@@ -38,19 +36,13 @@ public:
 
 protected:
 	void EngineBegineFrame();
-	void UpdateFrameData_Body();
-	void UpdateFrameData_Hand();
-	void UpdateFrameData_Face();
-
-	bool CheckConnectToServer();
 	void ConnectToServices();
 	void DisconnectToServer();
 
 private:
 	//当前链接属性
 	FMocapServerInfo UsedServerInfo;
-
-	TSharedPtr<StepIK_Client>	StepVrClient;
+	TSharedPtr<StepVrDataServer> ServerConnect;
 
 	int32 ReferenceCount = 0;
 

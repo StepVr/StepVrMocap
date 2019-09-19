@@ -2,17 +2,24 @@
 #include "CoreMinimal.h"
 
 
+DECLARE_DELEGATE(FReceiveData)
+
 class StepVrDataServer
 {
 public:
 	StepVrDataServer();
 	virtual ~StepVrDataServer();
 
+	//创建链接
 	static TSharedPtr<StepVrDataServer> CreateServerData();
+	
+	//数据回调
+	FReceiveData ReceiveData;
 
 	//链接
-	virtual void Connect2Server(const FString& IP,int32 port) = 0;
-	virtual void DisConnect() = 0;
+	virtual void Connect2Server(const FString& IP,int32 port);
+	virtual void DisConnect();
+	virtual bool IsConnected() = 0;
 
 	//动捕数据
 	virtual bool HasBodyData() = 0;
@@ -25,4 +32,8 @@ public:
 	//面部数据
 	virtual bool HasFaceData() = 0;
 	virtual void GetFaceData(TMap<FString, float>& OutData) = 0;
+
+protected:
+	FString ServerIP;
+	int32   ServerPort;
 };

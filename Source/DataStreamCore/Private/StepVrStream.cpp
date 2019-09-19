@@ -1,29 +1,15 @@
 ﻿// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
 
 #include "StepVrStream.h"
-#include "StepIkClientCpp.h"
 #include "StepVrGlobal.h"
 #include "StepVrServerModule.h"
+#include "StepVrDataServer.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/MorphTarget.h"
 #include "Misc/CoreDelegates.h"
 #include "Kismet/KismetMathLibrary.h"
-
-//#define ADDDETALTIME = 0.5f;
-/**
- * 当前帧从Service获取的数据
- */
-static int32 GStepFaceLength = 0;
-static float GStepFaceData[STEPFACEMORGHNUMS];
-static V4 GStepHandData[STEPHANDBONESNUMS];
-static transform GStepMocapData[STEPBONESNUMS];
-
-/**
- * 动捕临时数据，手套子节点用
- */
-static TArray<FTransform> UEMocapData;
 
 
 namespace StepMocapServers
@@ -93,83 +79,7 @@ void StepMocapServers::ReturnStream(TSharedRef<FStepMocapStream> StepMocapStream
 }
 
 
-void ConvertToUE(transform* InData, TArray<FTransform>& OutData)
-{
-	OutData.Empty(STEPBONESNUMS);
 
-	FVector TempVec;
-	FQuat TempQuat;
-	FVector TempScale;
-
-	static const FQuat QBA = FQuat::FQuat(FVector(0, 0, 1), PI);
-	static const FQuat QTE = FQuat::FQuat(FVector(0, 0, 1), -PI / 2.0).Inverse()*FQuat::FQuat(FVector(1, 0, 0), -PI / 2.0).Inverse();
-
-	for (int32 i = 0; i < STEPBONESNUMS; i++)
-	{
-		TempVec.X = InData[i].Location.z * 100;
-		TempVec.Y = InData[i].Location.x * 100;
-		TempVec.Z = InData[i].Location.y * 100;
-
-		TempQuat.X = InData[i].Rotation.x;
-		TempQuat.Y = InData[i].Rotation.y;
-		TempQuat.Z = InData[i].Rotation.z;
-		TempQuat.W = InData[i].Rotation.w;
-
-		TempQuat = TempQuat * QBA;
-		TempQuat = QTE * TempQuat;
-
-		if (!TempQuat.IsNormalized())
-		{
-			break;
-		}
-
-		//根骨骼缩放
-		if (i == 0)
-		{
-			TempScale.X = InData[i].Scale.x;
-			TempScale.Y = InData[i].Scale.y;
-			TempScale.Z = InData[i].Scale.z;
-		}else
-		{
-			TempScale = FVector::OneVector;
-		}
-
-		OutData.Add(FTransform(TempQuat, TempVec, TempScale));
-	}
-
-	if (OutData.Num() != STEPBONESNUMS)
-	{
-		OutData.Empty();
-	}
-}
-void ConvertToUE(V4* InData, TArray<FRotator>& OutData)
-{
-	OutData.Init(FRotator::ZeroRotator, STEPHANDBONESNUMS);
-
-	FQuat TempQuat;
-	static const FQuat QBA = FQuat::FQuat(FVector(0, 0, 1), PI);
-	static const FQuat QTE = FQuat::FQuat(FVector(0, 0, 1), -PI / 2.0).Inverse()*FQuat::FQuat(FVector(1, 0, 0), -PI / 2.0).Inverse();
-	for (int32 i = 0; i < STEPHANDBONESNUMS; i++)
-	{
-		TempQuat.X = InData[i].x;
-		TempQuat.Y = InData[i].y;
-		TempQuat.Z = InData[i].z;
-		TempQuat.W = InData[i].w;
-		
-		TempQuat = TempQuat*QBA;
-		TempQuat = QTE * TempQuat;
-
-		if (!TempQuat.IsNormalized())
-		{
-			FString Message = FString::Printf(TEXT("%f--%f--%f--%f"), TempQuat.X, TempQuat.Y, TempQuat.Z, TempQuat.W);
-			ShowMessage(Message);
-			OutData.Empty();
-			break;
-		}
-
-		OutData[i] = TempQuat.Rotator();
-	}
-}
 
 
 
@@ -546,7 +456,6 @@ void FStepMocapStream::SetServerInfo(const FMocapServerInfo& ServerInfo)
 	 * 连接数据池，注册更新
 	 */
 	ConnectToServices();
-	EngineBeginHandle = FCoreDelegates::OnBeginFrame.AddRaw(this, &FStepMocapStream::EngineBegineFrame);
 }
 
 const FMocapServerInfo& FStepMocapStream::GetServerInfo()
@@ -571,51 +480,43 @@ TMap<FString, float>& FStepMocapStream::GetBonesTransform_Face()
 
 bool FStepMocapStream::IsConnected()
 {
-	return StepVrClient->IsConnected();
+	return ServerConnect->IsConnected();
 }
 
 bool FStepMocapStream::IsBodyConnect()
 {
-	return StepVrClient->HasBodyData();
+	return ServerConnect->HasBodyData();
 }
 
 bool FStepMocapStream::IsHandConnect()
 {
-	return StepVrClient->HasGloveData();
+	return ServerConnect->HasHandData();
 }
 
 bool FStepMocapStream::IsFaceConnect()
 {
-	return StepVrClient->HasFaceData();
+	return ServerConnect->HasFaceData();
 }
 
 void FStepMocapStream::ConnectToServices()
 {
 	//创建连接
-	if (!StepVrClient.IsValid())
+	if (!ServerConnect.IsValid())
 	{
-		StepVrClient = MakeShareable(new StepIK_Client());
+		ServerConnect = StepVrDataServer::CreateServerData();
+		ServerConnect->ReceiveData.BindRaw(this, &FStepMocapStream::EngineBegineFrame);
 	}
 
-	StepVrClient->Connect(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP), UsedServerInfo.ServerPort);
-	
-	//连接动捕
-	StepVrClient->startData();
-
-	//连接手套
-	StepVrClient->GloEnable(true);
+	ServerConnect->Connect2Server(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP), UsedServerInfo.ServerPort);
 
 	FString Message = FString::Printf(TEXT("StepVrMocap Connect %s"), *UsedServerInfo.ServerIP);
 	ShowMessage(Message);
 }
 void FStepMocapStream::DisconnectToServer()
 {
-	FCoreDelegates::OnBeginFrame.Remove(EngineBeginHandle);
-
-	if (StepVrClient.IsValid())
+	if (ServerConnect.IsValid())
 	{
-		StepVrClient->DisConnect();
-		StepVrClient = nullptr;
+		ServerConnect->DisConnect();
 	}
 
 	FString Message = FString::Printf(TEXT("StepMocapStream Delete : %s"), *UsedServerInfo.ServerIP);
@@ -623,16 +524,16 @@ void FStepMocapStream::DisconnectToServer()
 }
 void FStepMocapStream::EngineBegineFrame()
 {
-	if (!CheckConnectToServer())
+	if (!ServerConnect.IsValid() ||
+		!ServerConnect->IsConnected())
 	{
 		return;
 	}
 
 	//动捕数据
-	if (IsBodyConnect())
+	if (ServerConnect->HasBodyData())
 	{
-		UpdateFrameData_Body();
-		ConvertToUE(GStepMocapData, CacheBodyFrameData);
+		ServerConnect->GetBodyData(CacheBodyFrameData);
 
 		//同步数据
 		if (UsedServerInfo.StepControllState == FStepControllState::Local_Replicate_Y && 
@@ -643,57 +544,14 @@ void FStepMocapStream::EngineBegineFrame()
 	}
 
 	//手套数据
-	do 
+	if (ServerConnect->HasHandData())
 	{
-		if (!IsHandConnect())
-		{
-			break;
-		}
+		ServerConnect->GetHandData(CacheHandFrameData);
+	}
 
-		UpdateFrameData_Hand();
-		ConvertToUE(GStepHandData, CacheHandFrameData);
-	} while (0);
-
-
-
-	if (IsFaceConnect())
+	//面部数据
+	if (ServerConnect->HasFaceData())
 	{
-		UpdateFrameData_Face();
-
-		//static UEnum* GRootEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("FStepFaceMorghs"), true);
-		//GRootEnumPtr->GetNameByValue(i).ToString()
-		CacheFaceFrameData.Empty(GStepFaceLength);
-		for (int32 i = 0; i < GStepFaceLength; i++)
-		{
-			if (StepFaceMorphTargets.IsValidIndex(i))
-			{
-				CacheFaceFrameData.Add(StepFaceMorphTargets[i], GStepFaceData[i]);
-			}
-		}
+		ServerConnect->GetFaceData(CacheFaceFrameData);
 	}
 }
-
-void FStepMocapStream::UpdateFrameData_Body()
-{
-	//修改根骨骼缩放
-	V3 CurScale;
-	StepVrClient->GetLossyScale(&CurScale);
-	StepVrClient->getData((transform*)GStepMocapData);
-	GStepMocapData[0].Scale = CurScale;
-}
-
-void FStepMocapStream::UpdateFrameData_Hand()
-{
-	StepVrClient->GetGloveData(GStepHandData);
-}
-
-void FStepMocapStream::UpdateFrameData_Face()
-{
-	StepVrClient->GetFaceData(GStepFaceData, GStepFaceLength);
-}
-
-bool FStepMocapStream::CheckConnectToServer()
-{
-	return StepVrClient->IsConnected();
-}
-

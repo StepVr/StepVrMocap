@@ -7,6 +7,10 @@
 
 #include <string>
 
+
+#if WITH_STEPMAGIC
+#include "VirtualShootingDll.h"
+#else
 struct V3
 {
 	float x;
@@ -29,6 +33,7 @@ struct transform
 	V4 Rotation;
 	V3 Scale;
 };
+#endif
 
 enum ServerStatus
 {
