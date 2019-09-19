@@ -19,10 +19,30 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	//FPoseLink InPose;
 	
 	/**
-	 * 暂停骨骼动捕
+	 * 是否关闭全身捕捉
+	 * Override : EnableHand
 	 */
-	UPROPERTY(EditAnywhere, Category = StepMocapBindBones)
-	bool	PauseSkeletonCapture = false;
+	UPROPERTY(EditAnywhere, Category = StepServer)
+	bool StopSkeletonCapture = false;
+	
+	/**
+	* 是否开启手部捕捉
+	*/
+	UPROPERTY(EditAnywhere, Category = StepServer)
+	bool EnableHand = false;
+
+	/**
+	* 是否开启面部捕捉
+	*/
+	UPROPERTY(EditAnywhere, Category = StepServer)
+	bool EnableFace = false;
+
+	/**
+	* 骨骼没有Skt文件，填空，使用BindMocapBones|BindMocapHandBones
+	* 骨骼有Skt文件，设置对应文件名，文件存放path:\Plugins\StepVrMocap\ThirdParty\skt\
+	*/
+	UPROPERTY(EditAnywhere, Category = StepServer)
+	FString SktName = TEXT("");
 
 	/**
 	 * Step修改身体 22 根骨骼点
@@ -48,41 +68,33 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	UPROPERTY(EditAnywhere, Category = StepMocapBindBones)
 	TMap<FString, FString>	BindMorphTarget;
 
+	/**
+	 * 服务器IP
+	 * 支持局域网IP
+	 */
 	UPROPERTY(EditAnywhere, Category=Server, meta=(PinShownByDefault))
 	FName ServerName = TEXT("127.0.0.1");
 
-	UPROPERTY(EditAnywhere, Category=Server,meta=(PinShownByDefault))
-	int32 PortNumber = 9516;
-
-	//UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
-	//bool ApplyStepScale = false;
-
 	/**
-	 * 是否开启身体捕捉
+	 * 是否根据TPOSE缩放骨骼
 	 */
-	//UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
-	//bool EnableBody = true;
+	UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault))
+	bool ApplyScale = false;
 
 	/**
-	* 是否开启手部捕捉
-	*/
-	UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
-	bool EnableHand = false;
-
-	/**
-	* 是否开启面部捕捉
-	*/
-	UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault, ToolTip = "Apply character scale from Step"))
-	bool EnableFace = false;
+	 * 服务器端口号
+	 * 暂时默认无需修改
+	 */
+	UPROPERTY(EditAnywhere, Category=Server)
+	int32 PortNumber = 9516;
 
 public:	
 
 	FAnimNode_StepDataStream();
 	~FAnimNode_StepDataStream();
 
+	void Connected();
 	void BindSkeleton(FAnimInstanceProxy* AnimInstanceProxy);
-	void BindServerStream(FAnimInstanceProxy* AnimInstanceProxy);
-	void IntializeServerStreamer(FAnimInstanceProxy* AnimInstanceProxy);
 	
 	// FAnimNode_Base interface
 	void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
@@ -95,6 +107,7 @@ public:
 
 private:
 	void BuildServerInfo();
+	void CheckInit();
 
 	//绑定骨架
 	FStepDataToSkeletonBinding mSkeletonBinding;
@@ -103,7 +116,13 @@ private:
 	FMocapServerInfo MocapServerInfo;
 
 	//缓存数据
-	const FAnimInstanceProxy* CacheAnimInstanceProxy = nullptr;
-	const APawn* OwnerPawn = nullptr;
+	const FAnimInstanceProxy*	CacheAnimInstanceProxy = nullptr;
+	const APawn*				CacheOwnerPawn = nullptr;
+	FVector						CacheSkeletonScale;
+
+	//联机
+	FStepControllState StepControllState = FStepControllState::Local_Replicate_N;
+	bool IsInit = false;
+	uint32 AddrValue = 0;
 };
 

@@ -30,6 +30,12 @@ public class StepVrDataStreamCore : ModuleRules
             RuntimeDependencies.Add(file);
             Console.WriteLine(file);
         }
+        var SktFiles = Directory.GetFiles(LibPath + "/skt", "*.txt");
+        foreach (var file in SktFiles)
+        {
+            RuntimeDependencies.Add(file);
+            Console.WriteLine(file);
+        }
     }
 
     public StepVrDataStreamCore(ReadOnlyTargetRules Target) : base(Target)
@@ -37,7 +43,8 @@ public class StepVrDataStreamCore : ModuleRules
         OptimizeCode = CodeOptimization.InShippingBuildsOnly;
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        InitStepMagic(false);
+        //初始化
+        InitStepMagic(true);
 
         PrivateIncludePaths.AddRange( new string[] 
         {
@@ -51,6 +58,7 @@ public class StepVrDataStreamCore : ModuleRules
             "Projects",
             "Json",
             "JsonUtilities",
+            "StepVrPlugin"
         });
         PublicDependencyModuleNames.AddRange(new string[] {
             "Core",
@@ -76,15 +84,10 @@ public class StepVrDataStreamCore : ModuleRules
 
     public void InitStepMagic(bool IsValid)
     {
-        if(Target.Platform == UnrealTargetPlatform.Win64 && IsValid)
+        if (Target.Platform == UnrealTargetPlatform.Win64 && IsValid)
         {
-            PublicDefinitions.Add("WITH_STEPMAGIC=1");
+            PublicDefinitions.Add("WITH_STEPMAGIC");
             PrivateDependencyModuleNames.Add("AJA_Corvid44");
-
-        }
-        else
-        {
-            PublicDefinitions.Add("WITH_STEPMAGIC=0");
         }
     }
 }

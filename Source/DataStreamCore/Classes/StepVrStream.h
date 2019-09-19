@@ -1,13 +1,11 @@
 ﻿// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
 #pragma once
 
-
 #include "StepMocapDefine.h"
 #include "Animation/AnimNodeBase.h"
 
 
-class StepIK_Client;
-struct FStepVRPNChar;
+class StepVrDataServer;
 
 typedef TMap<FString, FBoneReference> BoneMappings;
 
@@ -38,23 +36,13 @@ public:
 
 protected:
 	void EngineBegineFrame();
-#if WITH_STEPMAGIC
-	bool UpdateStepMagicData();
-#endif
-	void UpdateFrameData_Body();
-	void UpdateFrameData_Hand();
-	void UpdateFrameData_Face();
-
-	bool CheckConnectToServer();
 	void ConnectToServices();
-	void ConnectToStepMagic();
 	void DisconnectToServer();
 
 private:
 	//当前链接属性
 	FMocapServerInfo UsedServerInfo;
-
-	TSharedPtr<StepIK_Client>	StepVrClient;
+	TSharedPtr<StepVrDataServer> ServerConnect;
 
 	int32 ReferenceCount = 0;
 
@@ -121,7 +109,6 @@ public:
 	const TArray<int32>& GetUE4NeedUpdateBones();
 	const FStepDataToSkeletonBinding::FMapBone& GetUE4BoneIndex(int32 SegmentIndex) const;
 	const TArray<FStepDataToSkeletonBinding::FMapBone>& GetUE4Bones();
-	float GetFigureScale();
 
 	/**
 	 * 面部捕捉
@@ -131,11 +118,22 @@ public:
 	bool IsFaceBound();
 	const TArray<FStepDataToSkeletonBinding::FMorphData>& GetUE4FaceData();
 
+	/**
+	 * 骨骼缩放
+	 */
+	const FVector& GetSkeletonScale();
+
 private:
 	FMocapServerInfo CacheServerInfo;
 
+	
 	//ServerStream
 	TSharedPtr<FStepMocapStream> StepMpcapStream;
+
+	/**
+	 * 当前骨骼缩放
+	 */
+	FVector SkeletonScale;
 
 	/**
 	 * 全身动捕数据
@@ -147,4 +145,8 @@ private:
 	 */
 	TArray<FStepDataToSkeletonBinding::FMorphData> UE4FaceData;
 	bool mFaceBound = true;
+
+	//联网
+	uint64 CurFrame = 0;
+	double DetalTime = 0.f;
 };

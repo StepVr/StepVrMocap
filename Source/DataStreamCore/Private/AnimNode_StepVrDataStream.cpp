@@ -1,12 +1,18 @@
 ﻿// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
 #include "AnimNode_StepVrDataStream.h"
 #include "StepVrReplicatedComponent.h"
+#include "StepVrComponent.h"
+#include "StepVrSkt.h"
+
 
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/MorphTarget.h"
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
 #include "CoreMiscDefines.h"
+#include "AnimationRuntime.h"
+#include "Async.h"
+
 
 
 
@@ -45,6 +51,12 @@ FAnimNode_StepDataStream::~FAnimNode_StepDataStream()
 }
 
 
+void FAnimNode_StepDataStream::Connected()
+{
+	BuildServerInfo();
+	mSkeletonBinding.ConnectToServer(MocapServerInfo);
+}
+
 void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProxy)
 {
 	if (AnimInstanceProxy == nullptr)
@@ -58,44 +70,38 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 		return;
 	}
 
-	if (mSkeletonBinding.ConnectToServer(MocapServerInfo))
+	//绑定骨骼
+	if (!SktName.IsEmpty())
 	{
-		//绑定骨骼
-		mSkeletonBinding.BindToSkeleton(AnimInstanceProxy,BindMocapBones, BindMocapHandBones);
+		auto Skeletons = STEPVRSKT->GetSktRetarget(SktName);
+		if (Skeletons.Num() == (STEPHANDBONESNUMS + STEPBONESNUMS)) {
 
-		//绑定顶点变形
-		mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, BindMorphTarget);
-	}
-}
+			int32 Index = 0;
 
-void FAnimNode_StepDataStream::BindServerStream(FAnimInstanceProxy* AnimInstanceProxy)
-{
-	if (MocapServerInfo.IsEmpty())
-	{
-		return;
-	}
+			//身体骨骼
+			for (auto& Name : StepBoneNames)
+			{
+				BindMocapBones.FindOrAdd(Name) = FBoneReference(*Skeletons[Index]);
+				Index++;
+			}
 
-	if (AnimInstanceProxy == nullptr)
-	{
-		return;
-	}
-
-	BindSkeleton(AnimInstanceProxy);
-}
-
-void FAnimNode_StepDataStream::IntializeServerStreamer(FAnimInstanceProxy* AnimInstanceProxy)
-{
-	if (MocapServerInfo.IsEmpty())
-	{
-		return;
+			//手部骨骼
+			for (auto& Name : StepHandBoneNames)
+			{
+				BindMocapHandBones.FindOrAdd(Name) = FBoneReference(*Skeletons[Index]);
+				Index++;
+			}
+		}
 	}
 
-	if (AnimInstanceProxy == nullptr)
+	if (!EnableHand)
 	{
-		return;
+		BindMocapHandBones.Empty();
 	}
+	mSkeletonBinding.BindToSkeleton(AnimInstanceProxy, BindMocapBones, BindMocapHandBones);
 
-	BindSkeleton(AnimInstanceProxy);
+	//绑定顶点变形
+	mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, BindMorphTarget);
 }
 
 void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeContext& Context)
@@ -108,9 +114,17 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	// Forward to the incoming pose link.
 	check(Context.AnimInstanceProxy != nullptr);
 
-	BuildServerInfo();
+	//绑定骨骼
+	BindSkeleton(Context.AnimInstanceProxy);
 
-	BindServerStream(Context.AnimInstanceProxy);
+#if WITH_EDITOR
+	if (GWorld->WorldType == EWorldType::Editor)
+	{
+		IsInit = true;
+		StepControllState = FStepControllState::Local_Replicate_N;
+		Connected();
+	}
+#endif
 }
 
 
@@ -124,15 +138,17 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 	EvaluateGraphExposedInputs.Execute(Context);
 #endif
 
-	BuildServerInfo();
-	if (mSkeletonBinding.ConnectToServer(MocapServerInfo))
+	if (!IsInit)
 	{
-		//骨骼数据
-		mSkeletonBinding.UpdateSkeletonFrameData();
-
-		//面部数据
-		mSkeletonBinding.UpdateFaceFrameData();
+		CheckInit();
+		return;
 	}
+
+	//骨骼数据
+	mSkeletonBinding.UpdateSkeletonFrameData();
+
+	//面部数据
+	mSkeletonBinding.UpdateFaceFrameData();
 }
 
 //FGraphEventRef oExecOnGameThread(TFunction<void()> funcLambda)
@@ -147,9 +163,18 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 
 	Output.ResetToRefPose();
 
-	//更新动捕姿态
-	if (PauseSkeletonCapture == false)
+	if (!IsInit)
 	{
+		return;
+	}
+
+	//Scale 
+	FVector CurScale = mSkeletonBinding.GetSkeletonScale();
+
+	//更新动捕姿态
+	if (StopSkeletonCapture == false)
+	{
+		//修改骨骼
 		auto AllUpdateBones = mSkeletonBinding.GetUE4NeedUpdateBones();
 		//const FBoneContainer& RequiredBone = Output.AnimInstanceProxy->GetRequiredBones();
 		//int32 NumBones = RequiredBone.GetNumBones();
@@ -193,11 +218,30 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 			break;
 			}
 
+			if (ApplyScale && CurScale.X > 0.1f)
+			{
+				MapBoneData.BoneData.ScaleTranslation(1.f / CurScale.X);
+			}
 			Output.Pose.SetComponentSpaceTransform(BoneIndex, MapBoneData.BoneData);
 			StepIndex++;
 		}
 	}
 
+	//Scale
+	if (GWorld->WorldType != EWorldType::Editor)
+	{
+		if (ApplyScale && (!CacheSkeletonScale.Equals(CurScale)) && (CurScale.X > 0.1f))
+		{
+			CacheSkeletonScale = CurScale;
+			AsyncTask(ENamedThreads::GameThread, [&]()
+			{
+				if (CacheAnimInstanceProxy && CacheAnimInstanceProxy->GetSkelMeshComponent())
+				{
+					CacheAnimInstanceProxy->GetSkelMeshComponent()->SetWorldScale3D(CacheSkeletonScale);
+				}
+			});
+		}
+	}
 
 	//更新面部捕捉
 	USkeletalMeshComponent* SkeletonComponet = Output.AnimInstanceProxy->GetSkelMeshComponent();
@@ -221,16 +265,88 @@ void FAnimNode_StepDataStream::OnInitializeAnimInstance(const FAnimInstanceProxy
 {
 	Super::OnInitializeAnimInstance(InProxy, InAnimInstance);
 
-	OwnerPawn = Cast<APawn>(InAnimInstance->GetOwningActor());	
+	CacheOwnerPawn = Cast<APawn>(InAnimInstance->GetOwningActor());	
 
 	CacheAnimInstanceProxy = InProxy;
 }
 
 void FAnimNode_StepDataStream::BuildServerInfo()
 {
-	MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
+	//MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
+	MocapServerInfo.ServerIP = ServerName.ToString();
 	MocapServerInfo.ServerPort = PortNumber;
 	//MocapServerInfo.EnableBody = EnableBody;
+
 	MocapServerInfo.EnableHand = EnableHand;
 	MocapServerInfo.EnableFace = EnableFace;
+
+	MocapServerInfo.StepControllState = StepControllState;
+	MocapServerInfo.AddrValue = AddrValue;
+}
+
+void FAnimNode_StepDataStream::CheckInit()
+{
+	IsInit = false;
+
+	do 
+	{
+		if (!IsValid(CacheOwnerPawn))
+		{
+			//Finish 不是角色
+			IsInit = true;
+			StepControllState = FStepControllState::Local_Replicate_N;
+			break;
+		}
+
+		if (!CacheOwnerPawn->HasActorBegunPlay())
+		{
+			break;
+		}
+
+		TArray<UStepVrComponent*> Coms;
+		CacheOwnerPawn->GetComponents(Coms);
+		if (Coms.Num() == 0)
+		{
+			//Finish 没有添加组件，无法同步
+			IsInit = true;
+			StepControllState = FStepControllState::Local_Replicate_N;
+			break;
+		}
+
+		UStepVrComponent* TargetCom = Coms[0];
+		if (!TargetCom->bMocapReplicate)
+		{
+			//Finish 不需要同步
+			IsInit = true;
+			StepControllState = FStepControllState::Local_Replicate_N;
+			break;
+		}
+
+		if (!TargetCom->IsInitialization())
+		{
+			break;
+		}
+
+		if (TargetCom->IsLocalControlled())
+		{
+			//Finish 本地角色
+			IsInit = true;
+			StepControllState = FStepControllState::Local_Replicate_Y;
+			break;
+		}
+
+		if (!TargetCom->IsValidPlayerAddr())
+		{
+			break;
+		}
+
+		IsInit = true;
+		AddrValue = TargetCom->GetPlayerAddr();
+		StepControllState = FStepControllState::Remote_Replicate_Y;	
+	} while (0);
+
+	if (IsInit)
+	{
+		Connected();
+	}
 }
