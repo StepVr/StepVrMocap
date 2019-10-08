@@ -135,22 +135,22 @@ const TArray<FString> StepHandBoneNames = {
 	"LeftHandPinky3",				//15
 
 	//右手
-	"RightHandFingersBase" ,		//16
-	"RightHandThumb1",
-	"RightHandThumb2",
-	"RightHandThumb3",
-	"RightHandIndex1",
-	"RightHandIndex2",
-	"RightHandIndex3",
-	"RightHandMiddle1",
-	"RightHandMiddle2",
-	"RightHandMiddle3" ,
-	"RightHandRing1",
-	"RightHandRing2",
-	"RightHandRing3",
-	"RightHandPinky1",
-	"RightHandPinky2",
-	"RightHandPinky3",
+	"RightFingersBase" ,		//16
+	"RightThumb1",
+	"RightThumb2",
+	"RightThumb3",
+	"RightIndex1",
+	"RightIndex2",
+	"RightIndex3",
+	"RightMiddle1",
+	"RightMiddle2",
+	"RightMiddle3" ,
+	"RightRing1",
+	"RightRing2",
+	"RightRing3",
+	"RightPinky1",
+	"RightPinky2",
+	"RightPinky3",
 };
 
 
