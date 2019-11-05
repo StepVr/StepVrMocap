@@ -157,7 +157,7 @@ const TArray<FString> StepHandBoneNames = {
 
 /************************************************************************/
 /* 面部捕捉  
-/* 面部点配对，需要在插件启动时读取 C://StepFace//config//configBlends.json   */
+/* 面部点配对，需要在插件启动时读取 C://StepFace//config//configBlends.json  */
 /************************************************************************/
 #define  STEPFACEMORGHNUMS 130
 void LoadMorphTargets();

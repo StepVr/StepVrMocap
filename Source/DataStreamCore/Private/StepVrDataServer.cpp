@@ -3,6 +3,7 @@
 #include "StepMocapDefine.h"
 #include "CoreDelegates.h"
 
+
 static float		GStepFaceData[STEPFACEMORGHNUMS];
 static V4			GStepHandData[STEPHANDBONESNUMS];
 static transform	GStepMocapData[STEPBONESNUMS];
@@ -288,10 +289,45 @@ void FServicesData::GetBodyData(TArray<FTransform>& OutData)
 	ConvertToUE(GStepMocapData,OutData);
 }
 
+
+//测试手部数据
+//#include "FileHelper.h"
+//#include "BufferArchive.h"
+//#include "Paths.h"
+//#include "MemoryReader.h"
 void FServicesData::GetHandData(TArray<FRotator>& OutData)
 {
 	StepIK_Client::GetGloveData(GStepHandData);
 	ConvertToUE(GStepHandData,OutData);
+
+
+
+//#if 0
+//	FBufferArchive ToBinary;
+//	ToBinary << OutData;
+//
+//	FString savePath = FPaths::GameSavedDir().Append(TEXT("/data.a"));
+//	FFileHelper::SaveArrayToFile(ToBinary, *savePath);
+//
+//#else
+//	static TArray<FRotator> __Rotators;
+//	if (__Rotators.Num() == 0)
+//	{
+//		FString savePath = FPaths::GameSavedDir().Append(TEXT("/data.a"));
+//		TArray<uint8> ToBinary;
+//		if (FFileHelper::LoadFileToArray(ToBinary, *savePath))
+//		{
+//			FMemoryReader Reader(ToBinary);
+//			Reader << __Rotators;
+//		}
+//	}
+//
+//	for (int Index = 0; Index < 16 && OutData.IsValidIndex(Index); Index++)
+//	{
+//		OutData[Index] = __Rotators[Index];
+//	}
+//#endif
+
 }
 
 void FServicesData::GetFaceData(TMap<FString, float>& OutData)
