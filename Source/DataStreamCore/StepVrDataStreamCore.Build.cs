@@ -40,11 +40,14 @@ public class StepVrDataStreamCore : ModuleRules
 
     public StepVrDataStreamCore(ReadOnlyTargetRules Target) : base(Target)
     {
-        OptimizeCode = CodeOptimization.InShippingBuildsOnly;
+        //OptimizeCode = CodeOptimization.InShippingBuildsOnly;
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
         //初始化
         InitStepMagic(false);
+
+        //加载StepVrPlugins
+
 
         PrivateIncludePaths.AddRange( new string[] 
         {

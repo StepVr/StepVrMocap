@@ -1,7 +1,7 @@
-#include "StepVrDataServer.h"
+ï»¿#include "StepVrDataServer.h"
 #include "StepIkClientCpp.h"
 #include "StepMocapDefine.h"
-#include "CoreDelegates.h"
+#include "Misc/CoreDelegates.h"
 
 
 static float		GStepFaceData[STEPFACEMORGHNUMS];
@@ -38,7 +38,7 @@ void ConvertToUE(transform* InData, TArray<FTransform>& OutData)
 			break;
 		}
 
-		//¸ù¹Ç÷ÀËõ·Å
+		//æ ¹éª¨éª¼ç¼©æ”¾
 		if (i == 0)
 		{
 			TempScale.X = InData[i].Scale.x;
@@ -97,7 +97,7 @@ void ConvertToUE(V4* InData, TArray<FRotator>& OutData)
 #include "StepMagicThirdParty.h"
 #include "StepMagicGlobal.h"
 
-//µ±Ç°Ö¡´ÓStepMagic»ñÈ¡µÄÊı¾İ
+//å½“å‰å¸§ä»StepMagicè·å–çš„æ•°æ®
 static MFGValue GCur_IP_Frame;
 
 class FStepMagicData : public StepVrDataServer
@@ -189,7 +189,7 @@ void FStepMagicData::StepMagicFrameBegine()
 	MultiTracker stMultiTracker;
 	GVirtualShootingDll.Pin()->GetMultiTracker(stMultiTracker);
 
-	//¸üĞÂÒ»Ö¡Êı¾İ
+	//æ›´æ–°ä¸€å¸§æ•°æ®
 	MFGKey Keys;
 	Keys.strIP = std::string(TCHAR_TO_ANSI(*ServerIP));
 	Keys.nPort = ServerPort;
@@ -279,7 +279,7 @@ bool FServicesData::IsConnected()
 
 void FServicesData::GetBodyData(TArray<FTransform>& OutData)
 {
-	//ĞŞ¸Ä¸ù¹Ç÷ÀËõ·Å
+	//ä¿®æ”¹æ ¹éª¨éª¼ç¼©æ”¾
 	V3 CurScale;
 	StepIK_Client::GetLossyScale(&CurScale);
 
@@ -290,7 +290,7 @@ void FServicesData::GetBodyData(TArray<FTransform>& OutData)
 }
 
 
-//²âÊÔÊÖ²¿Êı¾İ
+//æµ‹è¯•æ‰‹éƒ¨æ•°æ®
 //#include "FileHelper.h"
 //#include "BufferArchive.h"
 //#include "Paths.h"

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "CoreMinimal.h"
 
 
@@ -10,26 +10,26 @@ public:
 	StepVrDataServer();
 	virtual ~StepVrDataServer();
 
-	//´´½¨Á´½Ó
+	//åˆ›å»ºé“¾æ¥
 	static TSharedPtr<StepVrDataServer> CreateServerData();
 	
-	//Êı¾İ»Øµ÷
+	//æ•°æ®å›è°ƒ
 	FReceiveData ReceiveData;
 
-	//Á´½Ó
+	//é“¾æ¥
 	virtual void Connect2Server(const FString& IP,int32 port);
 	virtual void DisConnect();
 	virtual bool IsConnected() = 0;
 
-	//¶¯²¶Êı¾İ
+	//åŠ¨æ•æ•°æ®
 	virtual bool HasBodyData() = 0;
 	virtual void GetBodyData(TArray<FTransform>& OutData) = 0;
 
-	//ÊÖÌ×Êı¾İ
+	//æ‰‹å¥—æ•°æ®
 	virtual bool HasHandData() = 0;
 	virtual void GetHandData(TArray<FRotator>& OutData) = 0;
 
-	//Ãæ²¿Êı¾İ
+	//é¢éƒ¨æ•°æ®
 	virtual bool HasFaceData() = 0;
 	virtual void GetFaceData(TMap<FString, float>& OutData) = 0;
 

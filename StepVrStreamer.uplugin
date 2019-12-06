@@ -19,7 +19,8 @@
       "Type": "Runtime",
       "LoadingPhase": "Default",
       "WhitelistPlatforms": [
-        "Win64"
+        "Win64",
+        "Win32"
       ]
     },
     {
@@ -27,8 +28,15 @@
       "Type": "Editor",
       "LoadingPhase": "Default",
       "WhitelistPlatforms": [
-        "Win64"
+        "Win64",
+        "Win32"
       ]
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "StepVrPlugin",
+      "Enabled": true
     }
   ]
 }

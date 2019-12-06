@@ -1,8 +1,8 @@
 #include "StepVrSkt.h"
-#include "GenericPlatformFile.h"
-#include "PlatformFilemanager.h"
-#include "Paths.h"
-#include "FileHelper.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/PlatformFilemanager.h"
+#include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
 
 
 static FStepVrSkt GStepVrSkt;

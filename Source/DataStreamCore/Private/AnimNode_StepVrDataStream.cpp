@@ -7,12 +7,15 @@
 
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/MorphTarget.h"
+#include "AnimationRuntime.h"
+
 #include "SocketSubsystem.h"
 #include "IPAddress.h"
-#include "CoreMiscDefines.h"
-#include "AnimationRuntime.h"
-#include "Async.h"
 
+#include "Misc/CoreMiscDefines.h"
+#include "Async/Async.h"
+
+#include "Launch/Resources/Version.h"
 
 
 
