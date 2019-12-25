@@ -125,7 +125,7 @@ public:
 };
 FStepMagicData::~FStepMagicData()
 {
-
+	
 }
 
 void FStepMagicData::Connect2Server(const FString& IP, int32 port)
@@ -238,7 +238,7 @@ public:
 
 FServicesData::~FServicesData()
 {
-
+	DisConnect();
 }
 
 bool FServicesData::HasBodyData()
@@ -270,6 +270,8 @@ void FServicesData::DisConnect()
 	StepVrDataServer::DisConnect();
 
 	FCoreDelegates::OnBeginFrame.Remove(HandleDelegate);
+
+	StepIK_Client::DisConnect();
 }
 
 bool FServicesData::IsConnected()

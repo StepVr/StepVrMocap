@@ -210,6 +210,10 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 			case FStepDataToSkeletonBinding::EMapBoneType::Bone_Body:
 			{
 				MapBoneData.BoneData.SetToRelativeTransform(FTransform::Identity);
+				if (ApplyScale && CurScale.X > 0.1f)
+				{
+					MapBoneData.BoneData.ScaleTranslation(1.f / CurScale.X);
+				}
 			}
 			break;
 			case FStepDataToSkeletonBinding::EMapBoneType::Bone_Hand:
@@ -221,10 +225,10 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 			break;
 			}
 
-			if (ApplyScale && CurScale.X > 0.1f)
-			{
-				MapBoneData.BoneData.ScaleTranslation(1.f / CurScale.X);
-			}
+			//if (ApplyScale && CurScale.X > 0.1f)
+			//{
+			//	MapBoneData.BoneData.ScaleTranslation(1.f / CurScale.X);
+			//}
 			Output.Pose.SetComponentSpaceTransform(BoneIndex, MapBoneData.BoneData);
 			StepIndex++;
 		}

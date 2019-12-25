@@ -149,11 +149,8 @@ bool FStepDataToSkeletonBinding::ConnectToServer(const FMocapServerInfo& InServe
 
 void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, BoneMappings& BodyBoneReferences, BoneMappings& HandBoneReferences)
 {
-	USkeleton* Skeleton = AnimInstanceProxy->GetSkeleton();
-	if (Skeleton == nullptr)
-	{
-		return;
-	}
+	const FBoneContainer& BoneContainer = AnimInstanceProxy->GetRequiredBones();
+	auto RefSkeleton = BoneContainer.GetReferenceSkeleton();
 
 	UE4BoneIndices.Empty();
 	FMapBone CurMapBone;
@@ -169,7 +166,7 @@ void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 			continue;
 		}
 
-		Ref->Initialize(Skeleton);
+		Ref->Initialize(BoneContainer);
 
 		if (Ref->HasValidSetup() && Ref->BoneIndex != 0)
 		{
@@ -192,7 +189,7 @@ void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 			continue;
 		}
 
-		Ref->Initialize(Skeleton);
+		Ref->Initialize(BoneContainer);
 
 		if (Ref->HasValidSetup())
 		{
@@ -211,18 +208,25 @@ void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 
 	UE4NeedUpdateBones.Empty();
 	UE4NeedUpdateBones.AddUnique(0);
-	const FBoneContainer& BoneContainer = AnimInstanceProxy->GetRequiredBones();
+
+
 	for (int Index = 0; Index < UE4BoneIndices.Num(); Index++)
 	{
 		//当前节点
 		int32 CurIdnex = UE4BoneIndices[Index].UeBoneIndex;
 		UE4NeedUpdateBones.AddUnique(CurIdnex);
 	
+		FName BoneName = RefSkeleton.GetBoneName(CurIdnex);
+		UE_LOG(LogTemp, Log, TEXT("CurName %d - %s"), CurIdnex, *BoneName.ToString());
+
 		//父节点
+		
 		while ((CurIdnex = BoneContainer.GetParentBoneIndex(CurIdnex)) > 0)
 		{
 			if (UE4NeedUpdateBones.Find(CurIdnex) == INDEX_NONE)
 			{
+				FName BoneName1 = RefSkeleton.GetBoneName(CurIdnex);
+				UE_LOG(LogTemp,Log,TEXT("   ParentName %d - %s"),CurIdnex,*BoneName1.ToString());
 				UE4NeedUpdateBones.Add(CurIdnex);
 			}
 			else
@@ -480,7 +484,7 @@ TMap<FString, float>& FStepMocapStream::GetBonesTransform_Face()
 
 bool FStepMocapStream::IsConnected()
 {
-	return ServerConnect->IsConnected();
+	return ServerConnect.IsValid() && ServerConnect->IsConnected();
 }
 
 bool FStepMocapStream::IsBodyConnect()
@@ -514,10 +518,7 @@ void FStepMocapStream::ConnectToServices()
 }
 void FStepMocapStream::DisconnectToServer()
 {
-	if (ServerConnect.IsValid())
-	{
-		ServerConnect->DisConnect();
-	}
+	ServerConnect = nullptr;
 
 	FString Message = FString::Printf(TEXT("StepMocapStream Delete : %s"), *UsedServerInfo.ServerIP);
 	ShowMessage(Message);

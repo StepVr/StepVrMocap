@@ -52,7 +52,7 @@ struct FMocapServerInfo
 
 	FMocapServerInfo():
 		ServerIP(""),
-		ServerPort(0),
+		ServerPort(9516),
 		EnableHand(false),
 		EnableFace(false),
 		AddrValue(0)
