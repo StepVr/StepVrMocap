@@ -1,5 +1,4 @@
-﻿// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
-#include "AnimNode_StepVrDataStream.h"
+﻿#include "AnimNode_StepVrDataStream.h"
 #include "StepVrReplicatedComponent.h"
 #include "StepVrComponent.h"
 #include "StepVrSkt.h"

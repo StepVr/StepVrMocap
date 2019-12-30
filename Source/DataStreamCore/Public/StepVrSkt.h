@@ -1,5 +1,4 @@
-// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
-#pragma once
+﻿#pragma once
 #include "CoreMinimal.h"
 
 typedef TMap<FString, TArray<FString>> SktFiles;

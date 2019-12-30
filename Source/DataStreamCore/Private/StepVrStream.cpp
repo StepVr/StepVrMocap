@@ -1,6 +1,4 @@
-﻿// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
-
-#include "StepVrStream.h"
+﻿#include "StepVrStream.h"
 #include "StepVrGlobal.h"
 #include "StepVrServerModule.h"
 #include "StepVrDataServer.h"
@@ -15,68 +13,16 @@
 namespace StepMocapServers
 {
 	static bool IsConnected = false;
-	static TMap<uint32, TSharedPtr<FStepMocapStream>> AllStreams;
+//	static TMap<uint32, TSharedPtr<FStepMocapStream>> AllStreams;
 
-	TSharedRef<FStepMocapStream> GetStream(const FMocapServerInfo& InServerInfo);
-	void ReturnStream(TSharedRef<FStepMocapStream> StepMocapStream);
+//	TSharedRef<FStepMocapStream> GetStream(const FMocapServerInfo& InServerInfo);
+//	void ReturnStream(TSharedRef<FStepMocapStream> StepMocapStream);
 
-	uint32 GetServerID(const FMocapServerInfo& InServerInfo);
-}
-
-uint32 StepMocapServers::GetServerID(const FMocapServerInfo& InServerInfo)
-{
-	FString ServerString = InServerInfo.ServerIP + FString::FormatAsNumber(InServerInfo.ServerPort);
-	uint32 ServerID = GetTypeHash(ServerString);
-	return ServerID;
+//	uint32 GetServerID(const FMocapServerInfo& InServerInfo);
 }
 
 
-TSharedRef<FStepMocapStream> StepMocapServers::GetStream(const FMocapServerInfo& InServerInfo)
-{
-	uint32 ServerID = StepMocapServers::GetServerID(InServerInfo);
 
-	TWeakPtr<FStepMocapStream> TargetStream;
-
-	auto Temp = AllStreams.Find(ServerID);
-	if (Temp == nullptr || !(*Temp).IsValid())
-	{
-		//移除原有的
-		AllStreams.Remove(ServerID);
-
-		TSharedPtr<FStepMocapStream> NewStream = MakeShareable(new FStepMocapStream());
-		NewStream->SetServerInfo(InServerInfo);
-		TargetStream = NewStream;
-		AllStreams.Add(ServerID, NewStream);
-	}
-	else
-	{
-		TargetStream = *Temp;
-	}
-
-	if (TargetStream.IsValid())
-	{
-		TargetStream.Pin()->NeedReference();
-	}
-	else
-	{
-		FString Message = FString::Printf(TEXT("StepMocapGetStreamFaild : ServerIP:%s , ServerPort:%d"), *InServerInfo.ServerIP, InServerInfo.ServerPort);
-		ShowMessage(Message);
-	}
-
-	return TargetStream.Pin().ToSharedRef();
-}
-
-void StepMocapServers::ReturnStream(TSharedRef<FStepMocapStream> StepMocapStream)
-{
-	uint32 ServerID = StepMocapServers::GetServerID(StepMocapStream->GetServerInfo());
-	auto Temp = AllStreams.Find(ServerID);
-
-	bool NeedRelease = (Temp != nullptr) && (*Temp)->ReleaseReference();
-	if (NeedRelease)
-	{
-		AllStreams.Remove(ServerID);
-	}
-}
 
 
 
@@ -90,61 +36,40 @@ FStepDataToSkeletonBinding::FStepDataToSkeletonBinding()
 
 FStepDataToSkeletonBinding::~FStepDataToSkeletonBinding()
 {
-	if (StepMpcapStream.IsValid())
-	{
-		StepMocapServers::ReturnStream(StepMpcapStream.ToSharedRef());
-	}
+	ResetMocapStream();
 }
 
 
 bool FStepDataToSkeletonBinding::ConnectToServer(const FMocapServerInfo& InServerInfo)
 {
+	bool Success = false;
+
 	if (InServerInfo.IsEmpty())
 	{
-		return false;
+		return Success;
 	}
 
-	//远端模拟
-	if (InServerInfo.StepControllState == Remote_Replicate_Y)
+	CacheServerInfo = InServerInfo;
+	ResetMocapStream();
+
+
+	switch (CacheServerInfo.StepControllState)
 	{
-		CacheServerInfo = InServerInfo;
-
-		if (StepMpcapStream.IsValid())
-		{
-			StepMocapServers::ReturnStream(StepMpcapStream.ToSharedRef());
-			StepMpcapStream.Reset();
-		}
-	}
-	else
+	case Local_Replicate_N:
+	case Local_Replicate_Y:
 	{
-		if (CacheServerInfo.IsEqual(InServerInfo))
-		{
-			return StepMpcapStream.IsValid() && StepMpcapStream->IsConnected();
-		}
-
-		CacheServerInfo = InServerInfo;
-
-		//创建新的Steam
-		if (!StepMpcapStream.IsValid())
-		{
-			StepMpcapStream = StepMocapServers::GetStream(CacheServerInfo);
-			return StepMpcapStream.IsValid();
-		}
-
-		//与当前的是否相同
-		if (StepMpcapStream->GetServerInfo().IsEqual(CacheServerInfo))
-		{
-			return true;
-		}
-
-		//释放并创建新的Steam
-		StepMocapServers::ReturnStream(StepMpcapStream.ToSharedRef());
-		StepMpcapStream = StepMocapServers::GetStream(CacheServerInfo);
-
-		return StepMpcapStream.IsValid();
+		//创建本地Stream
+		StepMpcapStream = FStepMocapStream::GetStepMocapStream(CacheServerInfo);
+		Success = StepMpcapStream.IsValid();
+	}
+	break;
+	case Remote_Replicate_Y:
+	{
+		Success = true;
+	}break;
 	}
 
-	return true;
+	return Success;
 }
 
 void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, BoneMappings& BodyBoneReferences, BoneMappings& HandBoneReferences)
@@ -336,6 +261,15 @@ const FVector& FStepDataToSkeletonBinding::GetSkeletonScale()
 	return SkeletonScale;
 }
 
+void FStepDataToSkeletonBinding::ResetMocapStream()
+{
+	if (StepMpcapStream.IsValid())
+	{
+		FStepMocapStream::DestroyStepMocapStream(StepMpcapStream.ToSharedRef());
+		StepMpcapStream.Reset();
+	}
+}
+
 void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 {
 	if (CacheServerInfo.StepControllState == Remote_Replicate_Y)
@@ -417,6 +351,20 @@ const TArray<int32>& FStepDataToSkeletonBinding::GetUE4NeedUpdateBones()
 	return UE4NeedUpdateBones;
 }
 
+
+
+/**
+ * FStepMocapStream
+ */
+AllStepMocapStreams FStepMocapStream::AllStreams = {};
+
+uint32 GetServerID(const FMocapServerInfo& InServerInfo)
+{
+	FString ServerString = InServerInfo.ServerIP + FString::FormatAsNumber(InServerInfo.ServerPort);
+	uint32 ServerID = GetTypeHash(ServerString);
+	return ServerID;
+}
+
 FStepMocapStream::FStepMocapStream()
 {
 
@@ -425,6 +373,54 @@ FStepMocapStream::FStepMocapStream()
 FStepMocapStream::~FStepMocapStream()
 {
 	DisconnectToServer();
+}
+
+TSharedPtr<FStepMocapStream> FStepMocapStream::GetStepMocapStream(const FMocapServerInfo& ServerInfo)
+{
+	uint32 ServerID = GetServerID(ServerInfo);
+
+	TSharedPtr<FStepMocapStream> NewStream;
+
+	auto Temp = FStepMocapStream::AllStreams.Find(ServerID);
+	if (Temp)
+	{
+		NewStream = *Temp;
+	}
+	else
+	{
+		NewStream = MakeShareable(new FStepMocapStream());
+		NewStream->SetServerInfo(ServerInfo);
+		FStepMocapStream::AllStreams.Add(ServerID, NewStream);
+	}
+
+	if (NewStream.IsValid())
+	{
+		NewStream->NeedReference();
+	}
+	else
+	{
+		FString Message = FString::Printf(TEXT("StepMocapGetStreamFaild : ServerIP:%s , ServerPort:%d"), *ServerInfo.ServerIP, ServerInfo.ServerPort);
+		ShowMessage(Message);
+	}
+
+	return NewStream.ToSharedRef();
+}
+
+void FStepMocapStream::DestroyStepMocapStream(TSharedPtr<FStepMocapStream> StepMocapStream)
+{
+	if (!StepMocapStream.IsValid())
+	{
+		return;
+	}
+
+	uint32 ServerID = GetServerID(StepMocapStream->GetServerInfo());
+	auto Temp = AllStreams.Find(ServerID);
+
+	bool NeedRelease = (Temp != nullptr) && (*Temp)->ReleaseReference();
+	if (NeedRelease)
+	{
+		AllStreams.Remove(ServerID);
+	}
 }
 
 bool FStepMocapStream::ReleaseReference()

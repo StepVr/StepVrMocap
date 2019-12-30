@@ -1,6 +1,4 @@
-﻿// Copyright (C) 2006-2017, IKinema Ltd. All rights reserved.
-
-#include "StepVrDataStreamModule.h"
+﻿#include "StepVrDataStreamModule.h"
 #include "Engine.h"
 #include "StepMocapDefine.h"
 #include "StepVrSkt.h"
