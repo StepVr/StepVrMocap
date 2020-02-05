@@ -1,4 +1,7 @@
-#include "StepVrSkt.h"
+﻿#include "StepVrSkt.h"
+#include "StepMocapDefine.h"
+
+
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/Paths.h"
@@ -65,6 +68,31 @@ TArray<FString>& FStepVrSkt::GetSktRetarget(FString& FileName)
 	}
 
 	return TempPtr;
+}
+
+bool FStepVrSkt::ReplcaeSkt(const FString& NewSkt)
+{
+	FString TargetPath = TEXT("C:\\StepVR_MMAP\\param\\NewModel_humanoid.skt");
+	FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*TargetPath);
+
+	//还原skt
+	if (NewSkt.IsEmpty())
+	{
+		return true;
+	}
+
+	//替换skt
+	FString SktPath = FPaths::ProjectPluginsDir().
+		Append("/StepVrMocap/ThirdParty/skt/").
+		Append(NewSkt).Append(".skt");
+
+	if (!FPaths::FileExists(SktPath))
+	{
+		UE_LOG(LogStepMocap, Log, TEXT("ReplcaeSkt Error,%s cant find"), *SktPath);
+		return false;
+	}
+
+	return FPlatformFileManager::Get().GetPlatformFile().CopyFile(*TargetPath, *SktPath);
 }
 
 void FStepVrSkt::AppendSkt(FString& FileName, TArray<FString>& OutData)

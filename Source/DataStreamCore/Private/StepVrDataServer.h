@@ -13,6 +13,9 @@ public:
 	//创建链接
 	static TSharedPtr<StepVrDataServer> CreateServerData();
 	
+	//还原skt
+	virtual void ReplaceSkt(bool IsUse);
+
 	//数据回调
 	FReceiveData ReceiveData;
 

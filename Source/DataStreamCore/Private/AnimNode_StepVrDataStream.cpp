@@ -1,5 +1,4 @@
 ﻿#include "AnimNode_StepVrDataStream.h"
-#include "StepVrReplicatedComponent.h"
 #include "StepVrComponent.h"
 #include "StepVrSkt.h"
 
@@ -68,7 +67,7 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 
 	USkeleton* skeleton = AnimInstanceProxy->GetSkeleton();
 	if (skeleton == nullptr)
-	{
+	{ 
 		return;
 	}
 

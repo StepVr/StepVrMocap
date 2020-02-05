@@ -15,10 +15,15 @@ DECLARE_CYCLE_STAT(TEXT("EvaluateComponentSpace_AnyThread"), STAT_EvaluateCompon
 /**
  * 全局函数
  */
-void ShowMessage(const FString& Log);
-FString GetLocalIP();
-FString Convert2LocalIP(const FString& NewIP);
+namespace StepMocapSpace
+{
+	
+	void ShowMessage(const FString& Log);
+	FString GetLocalIP();
+	FString Convert2LocalIP(const FString& NewIP);
+	bool    IsLocalIP(const FString& CheckIP);
 
+}
 
 /**
  * 联机状态
@@ -134,7 +139,7 @@ const TArray<FString> StepHandBoneNames = {
 	"LeftHandPinky3",				//15
 
 	//右手
-	"RightFingersBase" ,		//16
+	"RightFingersBase" ,			//16
 	"RightThumb1",
 	"RightThumb2",
 	"RightThumb3",

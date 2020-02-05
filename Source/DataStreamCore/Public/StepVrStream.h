@@ -17,7 +17,7 @@ typedef TMap<uint32, TSharedPtr<FStepMocapStream>> AllStepMocapStreams;
 class STEPVRDATASTREAMCORE_API FStepMocapStream
 {
 public:
-	static TSharedPtr<FStepMocapStream> GetStepMocapStream(const FMocapServerInfo& ServerInfo);
+	static TSharedPtr<FStepMocapStream> GetStepMocapStream(const FMocapServerInfo& ServerInfo , bool AlwaysCreat = true);
 	static void DestroyStepMocapStream(TSharedPtr<FStepMocapStream> StepMocapStream);
 
 public:
@@ -27,6 +27,12 @@ public:
 	//创建一个链接
 	void SetServerInfo(const FMocapServerInfo& ServerInfo);
 	const FMocapServerInfo& GetServerInfo();
+
+	/**
+	 * 替换skt
+	 * NewSktName为skt名称，NewSktName=null 则还原skt
+	 */
+	void ReplcaeSkt(const FString& NewSktName);
 
 	TArray<FTransform>&		GetBonesTransform_Body();
 	TArray<FRotator>&		GetBonesTransform_Hand();

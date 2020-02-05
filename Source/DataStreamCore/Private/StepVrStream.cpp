@@ -2,12 +2,14 @@
 #include "StepVrGlobal.h"
 #include "StepVrServerModule.h"
 #include "StepVrDataServer.h"
+#include "StepVrSkt.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/MorphTarget.h"
 #include "Misc/CoreDelegates.h"
 #include "Kismet/KismetMathLibrary.h"
+
 
 
 namespace StepMocapServers
@@ -375,7 +377,7 @@ FStepMocapStream::~FStepMocapStream()
 	DisconnectToServer();
 }
 
-TSharedPtr<FStepMocapStream> FStepMocapStream::GetStepMocapStream(const FMocapServerInfo& ServerInfo)
+TSharedPtr<FStepMocapStream> FStepMocapStream::GetStepMocapStream(const FMocapServerInfo& ServerInfo, bool AlwaysCreat)
 {
 	uint32 ServerID = GetServerID(ServerInfo);
 
@@ -386,7 +388,7 @@ TSharedPtr<FStepMocapStream> FStepMocapStream::GetStepMocapStream(const FMocapSe
 	{
 		NewStream = *Temp;
 	}
-	else
+	else if(AlwaysCreat)
 	{
 		NewStream = MakeShareable(new FStepMocapStream());
 		NewStream->SetServerInfo(ServerInfo);
@@ -400,10 +402,10 @@ TSharedPtr<FStepMocapStream> FStepMocapStream::GetStepMocapStream(const FMocapSe
 	else
 	{
 		FString Message = FString::Printf(TEXT("StepMocapGetStreamFaild : ServerIP:%s , ServerPort:%d"), *ServerInfo.ServerIP, ServerInfo.ServerPort);
-		ShowMessage(Message);
+		StepMocapSpace::ShowMessage(Message);
 	}
 
-	return NewStream.ToSharedRef();
+	return NewStream;
 }
 
 void FStepMocapStream::DestroyStepMocapStream(TSharedPtr<FStepMocapStream> StepMocapStream)
@@ -423,7 +425,7 @@ void FStepMocapStream::DestroyStepMocapStream(TSharedPtr<FStepMocapStream> StepM
 	}
 }
 
-bool FStepMocapStream::ReleaseReference()
+bool FStepMocapStream::ReleaseReference() 
 {
 	--ReferenceCount;
 	return ReferenceCount <= 0;
@@ -461,6 +463,15 @@ void FStepMocapStream::SetServerInfo(const FMocapServerInfo& ServerInfo)
 const FMocapServerInfo& FStepMocapStream::GetServerInfo()
 {
 	return UsedServerInfo;
+}
+
+void FStepMocapStream::ReplcaeSkt(const FString& NewSktName)
+{
+	if (STEPVRSKT->ReplcaeSkt(NewSktName) && 
+		ServerConnect.IsValid())
+	{
+		ServerConnect->ReplaceSkt(NewSktName.IsEmpty());
+	}
 }
 
 TArray<FTransform>& FStepMocapStream::GetBonesTransform_Body()
@@ -510,14 +521,16 @@ void FStepMocapStream::ConnectToServices()
 	ServerConnect->Connect2Server(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP), UsedServerInfo.ServerPort);
 
 	FString Message = FString::Printf(TEXT("StepVrMocap Connect %s"), *UsedServerInfo.ServerIP);
-	ShowMessage(Message);
+	
+	StepMocapSpace::ShowMessage(Message);
 }
 void FStepMocapStream::DisconnectToServer()
 {
 	ServerConnect = nullptr;
 
 	FString Message = FString::Printf(TEXT("StepMocapStream Delete : %s"), *UsedServerInfo.ServerIP);
-	ShowMessage(Message);
+	
+	StepMocapSpace::ShowMessage(Message);
 }
 void FStepMocapStream::EngineBegineFrame()
 {

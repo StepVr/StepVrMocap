@@ -23,6 +23,8 @@ public class StepVrDataStreamCore : ModuleRules
 
     public void ReferenceDlls()
     {
+        Console.WriteLine("-------------StepVrMocap Start-------------");
+
         string Path = GetLibFullPath();
         var DllFiles = Directory.GetFiles(Path, "*.dll");
         foreach (var file in DllFiles)
@@ -30,12 +32,22 @@ public class StepVrDataStreamCore : ModuleRules
             RuntimeDependencies.Add(file);
             Console.WriteLine(file);
         }
-        var SktFiles = Directory.GetFiles(LibPath + "/skt", "*.txt");
+
+        var SktNameFiles = Directory.GetFiles(LibPath + "/skt", "*.txt");
+        foreach (var file in SktNameFiles)
+        {
+            RuntimeDependencies.Add(file);
+            Console.WriteLine(file);
+        }
+
+        var SktFiles = Directory.GetFiles(LibPath + "/skt", "*.skt");
         foreach (var file in SktFiles)
         {
             RuntimeDependencies.Add(file);
             Console.WriteLine(file);
         }
+
+        Console.WriteLine("-------------StepVrMocap End-------------");
     }
 
     public StepVrDataStreamCore(ReadOnlyTargetRules Target) : base(Target)

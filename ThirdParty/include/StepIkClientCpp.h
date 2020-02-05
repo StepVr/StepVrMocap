@@ -6,11 +6,8 @@
 #endif // _STEP_DLL_EXPORT
 
 #include <string>
+#include <vector>
 
-
-#ifdef WITH_STEPMAGIC
-#include "VirtualShootingDll.h"
-#else
 struct V3
 {
 	float x;
@@ -33,7 +30,6 @@ struct transform
 	V4 Rotation;
 	V3 Scale;
 };
-#endif
 
 enum ServerStatus
 {
@@ -111,6 +107,7 @@ public:
 
 	int startData();//大于0表示成功
 	int StopData();//大于0表示成功
+	void SetSKT(bool bSet);//更改SKT文件后调用，无需tpose
 	int TPose();//返回值：参考TPoseStatus
 	
 	int GetServerStatus();//返回值：参考ConnectReturnValue
@@ -130,18 +127,27 @@ public:
 	void GloCaliDynamic(int iLR);//动态校准
 	void GloSetBtnCallBack(FnBtnCallBack pFn);//按键回调函数，见上方函数声明
 	
+	void GetMacHand(float *angles);
+
 	//deprecated.
 	void GloSetRotType(int iType);//已失效，只输出Global姿态。//设置输出的姿态（0 Local，1 Global）默认是0
 	
 	void GetHandPos(V3 * data);//在纯手模式下用于获得两只手的位置
 
 	void GetFaceData(float* fFaceData, int & iLen);
+	void GetFaceData2(float* fFaceData);
 
 	void GetMacArmData(MacArmData * data);//七轴机械臂专用,返回两个MacArmData
+	void SetMacArmDataCurr(MacArmData * data);//上传七轴机械臂的参数
+	void GetMacArmDataCurr(MacArmData * data);//获取上传的参数
 
 	bool HasBodyData();
 	bool HasGloveData();
 	bool HasFaceData();
+
+	void GetRecordFiles(std::vector<std::string>& vFiles, int iType);
+	void StartRecord(const char * sName);
+	void StopRecord();
 };
 
 
@@ -150,6 +156,7 @@ extern "C" {
 	STEPIK_DLL_API void DisConnect();
 	STEPIK_DLL_API int startData();
 	STEPIK_DLL_API int StopData();
+	STEPIK_DLL_API void SetSKT(bool bSet);
 	STEPIK_DLL_API int TPose();
 		
 	STEPIK_DLL_API int GetServerStatus();
@@ -169,14 +176,21 @@ extern "C" {
 	STEPIK_DLL_API void GloSetBtnCallBack(FnBtnCallBack pFn);
 	STEPIK_DLL_API void GloSetRotType(int iType);
 
+	STEPIK_DLL_API void GetMacHand(float *angles);
 	STEPIK_DLL_API void GetHandPos(V3 * data);
 
 	STEPIK_DLL_API void GetFaceData(float* fFaceData, int & iLen);
+	STEPIK_DLL_API void GetFaceData2(float* fFaceData);
 
 	STEPIK_DLL_API void GetMacArmData(MacArmData * data);
+	STEPIK_DLL_API void SetMacArmDataCurr(MacArmData * data);
+	STEPIK_DLL_API void GetMacArmDataCurr(MacArmData * data);
 
 	STEPIK_DLL_API bool HasBodyData();
 	STEPIK_DLL_API bool HasGloveData();
 	STEPIK_DLL_API bool HasFaceData();
-	
+
+	STEPIK_DLL_API void GetRecordFiles(std::vector<std::string>& vFiles, int iType);
+	STEPIK_DLL_API void StartRecord(const char * sName);
+	STEPIK_DLL_API void StopRecord();
 }

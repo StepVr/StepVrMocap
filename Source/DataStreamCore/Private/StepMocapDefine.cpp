@@ -12,7 +12,7 @@ DEFINE_LOG_CATEGORY(LogStepMocap)
 
 TArray<FString> StepFaceMorphTargets = {};
 
-void ShowMessage(const FString& Log)
+void StepMocapSpace::ShowMessage(const FString& Log)
 {
 	if (IsInGameThread())
 	{
@@ -22,13 +22,13 @@ void ShowMessage(const FString& Log)
 	{
 		AsyncTask(ENamedThreads::GameThread, [Log]()
 		{
-			ShowMessage(Log);
+			StepMocapSpace::ShowMessage(Log);
 			//UE_LOG(LogStepMocap, Log, TEXT("%s"), *Log);
 		});
 	}
 }
 
-FString GetLocalIP()
+FString StepMocapSpace::GetLocalIP()
 {
 	static FString GLocalIP = "";
 	if (GLocalIP.IsEmpty())
@@ -43,16 +43,28 @@ FString GetLocalIP()
 	return GLocalIP;
 }
 
-FString Convert2LocalIP(const FString& NewIP)
+FString StepMocapSpace::Convert2LocalIP(const FString& NewIP)
 {
 	FString Addr = NewIP;
 	if (NewIP.Equals(TEXT("127.0.0.1"), ESearchCase::IgnoreCase) ||
 		NewIP.Equals(TEXT("localhost"), ESearchCase::IgnoreCase))
 	{
-		Addr = GetLocalIP();
+		Addr = StepMocapSpace::GetLocalIP();
 	}
 
 	return Addr;
+}
+
+bool StepMocapSpace::IsLocalIP(const FString& CheckIP)
+{
+	if (CheckIP.Equals(TEXT("127.0.0.1"), ESearchCase::IgnoreCase) ||
+		CheckIP.Equals(GetLocalIP(), ESearchCase::IgnoreCase) ||
+		CheckIP.Equals(TEXT("localhost"), ESearchCase::IgnoreCase))
+	{
+		return true;
+	}
+
+	return false;
 }
 
 void LoadMorphTargets()
@@ -60,7 +72,7 @@ void LoadMorphTargets()
 	FString JsonData;
 	if (!FFileHelper::LoadFileToString(JsonData, TEXT("C://StepFace//config//configBlends.json")))
 	{
-		ShowMessage(TEXT("Read C://StepFace//config//configBlends.json Fail"));
+		StepMocapSpace::ShowMessage(TEXT("Read C://StepFace//config//configBlends.json Fail"));
 		return;
 	}
 
@@ -92,6 +104,6 @@ void LoadMorphTargets()
 
 	if (!IsSuccess)
 	{
-		ShowMessage(TEXT("Parse MorphTargets Config Error"));
+		StepMocapSpace::ShowMessage(TEXT("Parse MorphTargets Config Error"));
 	}
 }

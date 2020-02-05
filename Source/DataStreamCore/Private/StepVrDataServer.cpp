@@ -78,7 +78,7 @@ void ConvertToUE(V4* InData, TArray<FRotator>& OutData)
 		if (!TempQuat.IsNormalized())
 		{
 			FString Message = FString::Printf(TEXT("%f--%f--%f--%f"), TempQuat.X, TempQuat.Y, TempQuat.Z, TempQuat.W);
-			ShowMessage(Message);
+			StepMocapSpace::ShowMessage(Message);
 			OutData.Empty();
 			break;
 }
@@ -234,6 +234,12 @@ public:
 
 	FDelegateHandle HandleDelegate;
 	void MMapFrameBegin();
+
+	virtual void ReplaceSkt(bool IsUse) override
+	{
+		StepIK_Client::SetSKT(IsUse);
+	}
+
 };
 
 FServicesData::~FServicesData()
@@ -375,6 +381,11 @@ TSharedPtr<StepVrDataServer> StepVrDataServer::CreateServerData()
 #else
 	return MakeShareable(new FServicesData()); 
 #endif // WITH_STEPMAGIC
+}
+
+void StepVrDataServer::ReplaceSkt(bool IsUse)
+{
+
 }
 
 void StepVrDataServer::Connect2Server(const FString& IP, int32 port)
