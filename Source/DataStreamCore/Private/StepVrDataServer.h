@@ -14,7 +14,11 @@ public:
 	static TSharedPtr<StepVrDataServer> CreateServerData();
 	
 	//还原skt
-	virtual void ReplaceSkt(bool IsUse);
+	virtual void ReplaceSkt(bool IsUse) {}
+	virtual void RecordStart(const FString& Name) {}
+	virtual void RecordStop() {}
+	virtual void TPose() {}
+
 
 	//数据回调
 	FReceiveData ReceiveData;

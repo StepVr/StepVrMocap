@@ -103,18 +103,15 @@ public:
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 
 private:
-	void BuildServerInfo();
+	FMocapServerInfo BuildServerInfo();
 	void CheckInit();
 
 	//绑定骨架
 	FStepDataToSkeletonBinding mSkeletonBinding;
 
-	//链接server属性
-	FMocapServerInfo MocapServerInfo;
-
 	//缓存数据
 	const FAnimInstanceProxy*	CacheAnimInstanceProxy = nullptr;
-	const APawn*				CacheOwnerPawn = nullptr;
+	const AActor*				CacheOwnerActor = nullptr;
 	FVector						CacheSkeletonScale;
 
 	//联机

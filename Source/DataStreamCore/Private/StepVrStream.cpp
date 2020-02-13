@@ -377,7 +377,20 @@ FStepMocapStream::~FStepMocapStream()
 	DisconnectToServer();
 }
 
-TSharedPtr<FStepMocapStream> FStepMocapStream::GetStepMocapStream(const FMocapServerInfo& ServerInfo, bool AlwaysCreat)
+TSharedPtr<FStepMocapStream> FStepMocapStream::GetActorMocapStream(FString& ActorName)
+{
+	for (auto& Pair : FStepMocapStream::AllStreams)
+	{
+		if (Pair.Value->HasActorName(ActorName))
+		{
+			return Pair.Value;
+		}
+	}
+
+	return nullptr;
+}
+
+TSharedPtr<FStepMocapStream> FStepMocapStream::GetStepMocapStream(FMocapServerInfo& ServerInfo, bool AlwaysCreat)
 {
 	uint32 ServerID = GetServerID(ServerInfo);
 
@@ -397,6 +410,7 @@ TSharedPtr<FStepMocapStream> FStepMocapStream::GetStepMocapStream(const FMocapSe
 
 	if (NewStream.IsValid())
 	{
+		NewStream->AddActorOwner(ServerInfo.OwnerActorName, ServerInfo);
 		NewStream->NeedReference();
 	}
 	else
@@ -447,7 +461,7 @@ void FStepMocapStream::SetServerInfo(const FMocapServerInfo& ServerInfo)
 	{
 		return;
 	}
-
+	
 	//初始化服务
 	UsedServerInfo = ServerInfo;
 
@@ -467,10 +481,43 @@ const FMocapServerInfo& FStepMocapStream::GetServerInfo()
 
 void FStepMocapStream::ReplcaeSkt(const FString& NewSktName)
 {
-	if (STEPVRSKT->ReplcaeSkt(NewSktName) && 
-		ServerConnect.IsValid())
+	do 
 	{
-		ServerConnect->ReplaceSkt(NewSktName.IsEmpty());
+		if (!STEPVRSKT->ReplcaeSkt(NewSktName))
+		{
+			break;
+		}
+
+		if (!ServerConnect.IsValid())
+		{
+			break;
+		}
+
+		ServerConnect->ReplaceSkt(!NewSktName.IsEmpty());
+	} while (0);
+}
+
+void FStepMocapStream::RecordStart(const FString& Name)
+{
+	if(ServerConnect.IsValid())
+	{
+		ServerConnect->RecordStart(Name);
+	}
+}
+
+void FStepMocapStream::RecordStop()
+{
+	if (ServerConnect.IsValid())
+	{
+		ServerConnect->RecordStop();
+	}
+}
+
+void FStepMocapStream::TPose()
+{
+	if (ServerConnect.IsValid())
+	{
+		ServerConnect->TPose();
 	}
 }
 
@@ -507,6 +554,29 @@ bool FStepMocapStream::IsHandConnect()
 bool FStepMocapStream::IsFaceConnect()
 {
 	return ServerConnect->HasFaceData();
+}
+
+void FStepMocapStream::AddActorOwner(FString& ActorName, FMocapServerInfo& ServerInfo)
+{
+	if (CacheActors.Find(ActorName) == nullptr)
+	{
+		CacheActors.Add(ActorName,ServerInfo);
+	}
+}
+
+
+void FStepMocapStream::RemoveActorOwner(FString& ActorName)
+{
+	auto Pair = CacheActors.Find(ActorName);
+	if (Pair)
+	{
+		CacheActors.Remove(Pair->OwnerActorName);
+	}
+}
+
+FMocapServerInfo* FStepMocapStream::HasActorName(FString& ActorName)
+{
+	return  CacheActors.Find(ActorName);
 }
 
 void FStepMocapStream::ConnectToServices()

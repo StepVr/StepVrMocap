@@ -14,10 +14,11 @@ typedef TMap<uint32, TSharedPtr<FStepMocapStream>> AllStepMocapStreams;
 /**
  * 数据流，管理数据来源
  */
-class STEPVRDATASTREAMCORE_API FStepMocapStream
+class STEPVRDATASTREAMCORE_API FStepMocapStream                   
 {
 public:
-	static TSharedPtr<FStepMocapStream> GetStepMocapStream(const FMocapServerInfo& ServerInfo , bool AlwaysCreat = true);
+	static TSharedPtr<FStepMocapStream> GetActorMocapStream(FString& ActorName);
+	static TSharedPtr<FStepMocapStream> GetStepMocapStream(FMocapServerInfo& ServerInfo , bool AlwaysCreat = true);
 	static void DestroyStepMocapStream(TSharedPtr<FStepMocapStream> StepMocapStream);
 
 public:
@@ -34,6 +35,11 @@ public:
 	 */
 	void ReplcaeSkt(const FString& NewSktName);
 
+	void RecordStart(const FString& Name);
+	void RecordStop();
+	void TPose();
+
+
 	TArray<FTransform>&		GetBonesTransform_Body();
 	TArray<FRotator>&		GetBonesTransform_Hand();
 	TMap<FString, float>&	GetBonesTransform_Face();
@@ -43,6 +49,10 @@ public:
 	bool IsHandConnect();
 	bool IsFaceConnect();
 
+	//添加该链接对应信息
+	void AddActorOwner(FString& ActorName, FMocapServerInfo& ServerInfo);
+	void RemoveActorOwner(FString& ActorName);
+	FMocapServerInfo* HasActorName(FString& ActorName);
 protected:
 	void EngineBegineFrame();
 	void ConnectToServices();
@@ -58,6 +68,9 @@ private:
 	TSharedPtr<StepVrDataServer> ServerConnect;
 
 	int32 ReferenceCount = 0;
+
+	//所有拥有此链接得Actor
+	TMap<FString, FMocapServerInfo> CacheActors;
 
 	//动捕存储数据
 	TArray<FTransform> CacheBodyFrameData;

@@ -52,7 +52,7 @@ public class StepVrDataStreamCore : ModuleRules
 
     public StepVrDataStreamCore(ReadOnlyTargetRules Target) : base(Target)
     {
-        //OptimizeCode = CodeOptimization.InShippingBuildsOnly;
+        OptimizeCode = CodeOptimization.InShippingBuildsOnly;
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
         //初始化

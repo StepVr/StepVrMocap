@@ -240,6 +240,24 @@ public:
 		StepIK_Client::SetSKT(IsUse);
 	}
 
+
+	virtual void RecordStart(const FString& Name) override
+	{
+		StepIK_Client::StartRecord(TCHAR_TO_ANSI(*Name));
+	}
+
+
+	virtual void RecordStop() override
+	{
+		StepIK_Client::StopRecord();
+	}
+
+
+	virtual void TPose() override
+	{
+		StepIK_Client::TPose();
+	}
+
 };
 
 FServicesData::~FServicesData()
@@ -372,6 +390,7 @@ StepVrDataServer::StepVrDataServer()
 
 StepVrDataServer::~StepVrDataServer()
 {
+
 }
 
 TSharedPtr<StepVrDataServer> StepVrDataServer::CreateServerData()
@@ -381,11 +400,6 @@ TSharedPtr<StepVrDataServer> StepVrDataServer::CreateServerData()
 #else
 	return MakeShareable(new FServicesData()); 
 #endif // WITH_STEPMAGIC
-}
-
-void StepVrDataServer::ReplaceSkt(bool IsUse)
-{
-
 }
 
 void StepVrDataServer::Connect2Server(const FString& IP, int32 port)

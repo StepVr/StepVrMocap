@@ -54,8 +54,7 @@ FAnimNode_StepDataStream::~FAnimNode_StepDataStream()
 
 void FAnimNode_StepDataStream::Connected()
 {
-	BuildServerInfo();
-	mSkeletonBinding.ConnectToServer(MocapServerInfo);
+	mSkeletonBinding.ConnectToServer(BuildServerInfo());
 }
 
 void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProxy)
@@ -114,6 +113,9 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 
 	// Forward to the incoming pose link.
 	check(Context.AnimInstanceProxy != nullptr);
+
+	CacheAnimInstanceProxy = Context.AnimInstanceProxy;
+	CacheOwnerActor = CacheAnimInstanceProxy->GetSkelMeshComponent()->GetOwner();
 
 	//绑定骨骼
 	BindSkeleton(Context.AnimInstanceProxy);
@@ -270,13 +272,15 @@ void FAnimNode_StepDataStream::OnInitializeAnimInstance(const FAnimInstanceProxy
 {
 	Super::OnInitializeAnimInstance(InProxy, InAnimInstance);
 
-	CacheOwnerPawn = Cast<APawn>(InAnimInstance->GetOwningActor());	
+	//CacheOwnerActor = InAnimInstance->GetOwningActor();
 
 	CacheAnimInstanceProxy = InProxy;
 }
 
-void FAnimNode_StepDataStream::BuildServerInfo()
+FMocapServerInfo FAnimNode_StepDataStream::BuildServerInfo()
 {
+	FMocapServerInfo MocapServerInfo;
+
 	//MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
 	MocapServerInfo.ServerIP = ServerName.ToString();
 	MocapServerInfo.ServerPort = PortNumber;
@@ -287,6 +291,13 @@ void FAnimNode_StepDataStream::BuildServerInfo()
 
 	MocapServerInfo.StepControllState = StepControllState;
 	MocapServerInfo.AddrValue = AddrValue;
+	MocapServerInfo.SktName = SktName;
+
+	if (CacheOwnerActor)
+	{
+		MocapServerInfo.OwnerActorName = CacheOwnerActor->GetName();
+	}
+	return MocapServerInfo;
 }
 
 void FAnimNode_StepDataStream::CheckInit()
@@ -295,7 +306,7 @@ void FAnimNode_StepDataStream::CheckInit()
 
 	do 
 	{
-		if (!IsValid(CacheOwnerPawn))
+		if (!IsValid(CacheOwnerActor))
 		{
 			//Finish 不是角色
 			IsInit = true;
@@ -303,13 +314,14 @@ void FAnimNode_StepDataStream::CheckInit()
 			break;
 		}
 
-		if (!CacheOwnerPawn->HasActorBegunPlay())
+		if (!CacheOwnerActor->HasActorBegunPlay())
 		{
 			break;
 		}
 
+
 		TArray<UStepVrComponent*> Coms;
-		CacheOwnerPawn->GetComponents(Coms);
+		CacheOwnerActor->GetComponents(Coms);
 		if (Coms.Num() == 0)
 		{
 			//Finish 没有添加组件，无法同步
@@ -324,11 +336,6 @@ void FAnimNode_StepDataStream::CheckInit()
 			//Finish 不需要同步
 			IsInit = true;
 			StepControllState = FStepControllState::Local_Replicate_N;
-			break;
-		}
-
-		if (!TargetCom->IsInitialization())
-		{
 			break;
 		}
 

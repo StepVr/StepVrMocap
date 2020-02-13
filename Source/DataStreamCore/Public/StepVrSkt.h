@@ -22,7 +22,7 @@ public:
 	bool ReplcaeSkt(const FString& NewSkt);
 
 private:
-	void AppendSkt(FString& FileName, TArray<FString>& OutData);
+	void AppendSkt(FString& FileName, TArray<FString>& OutData); 
 
 	SktFiles AllFiles;
 };

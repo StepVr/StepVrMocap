@@ -54,12 +54,20 @@ struct FMocapServerInfo
 	FStepControllState StepControllState;
 	uint32 AddrValue;
 
+	//ActorName
+	FString OwnerActorName;
+
+	//skt Name
+	FString SktName;
+
 	FMocapServerInfo():
 		ServerIP(""),
 		ServerPort(9516),
 		EnableHand(false),
 		EnableFace(false),
-		AddrValue(0)
+		AddrValue(0),
+		OwnerActorName("Null"),
+		SktName("")
 	{
 		StepControllState = FStepControllState::Local_Replicate_N;
 	};
