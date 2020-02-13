@@ -49,6 +49,16 @@ void FStepVrSkt::LoadSkt()
 
 void FStepVrSkt::AddFiles(FString& FileName, TArray<FString>& SkeletonID)
 {
+	for (int32 Index = 0; Index < SkeletonID.Num(); Index++)
+	{
+		if (SkeletonID[Index].Find(TEXT(" ")) == INDEX_NONE)
+		{
+			continue;
+		}
+		FString Cur = SkeletonID[Index].Replace(TEXT(" "), TEXT("-"));
+		SkeletonID[Index] = Cur;
+	}
+
 	AllFiles.FindOrAdd(FileName) = SkeletonID;
 }
 
