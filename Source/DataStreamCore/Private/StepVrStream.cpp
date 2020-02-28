@@ -192,11 +192,6 @@ void FStepDataToSkeletonBinding::BindToFaceMorghTarget(FAnimInstanceProxy* AnimI
 	mFaceBound = false;
 	UE4FaceData.Empty();
 
-	if (!CacheServerInfo.EnableFace)
-	{
-		return;
-	}
-
 	USkeletalMeshComponent* Cpmponent = AnimInstanceProxy->GetSkelMeshComponent();
 	if (Cpmponent == nullptr || Cpmponent->SkeletalMesh == nullptr)
 	{
