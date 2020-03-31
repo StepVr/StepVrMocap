@@ -92,7 +92,7 @@ bool FStepVrSkt::ReplcaeSkt(const FString& NewSkt)
 		return false;
 	}
 
-	return FPlatformFileManager::Get().GetPlatformFile().CopyFile(*TargetPath, *SktPath);
+	return FPlatformFileManager::Get().GetPlatformFile ().CopyFile(*TargetPath, *SktPath);
 }
 
 void FStepVrSkt::AppendSkt(FString& FileName, TArray<FString>& OutData)
