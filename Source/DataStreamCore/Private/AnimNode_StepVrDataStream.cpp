@@ -99,9 +99,12 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 		BindMocapHandBones.Empty();
 	}
 	mSkeletonBinding.BindToSkeleton(AnimInstanceProxy, BindMocapBones, BindMocapHandBones);
-
-	//绑定顶点变形
-	mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, BindMorphTarget);
+	
+	if (EnableFace)
+	{
+		//绑定顶点变形 
+		mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, BindMorphTarget);
+	}
 }
 
 void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeContext& Context)
@@ -117,6 +120,7 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	CacheAnimInstanceProxy = Context.AnimInstanceProxy;
 	CacheOwnerActor = CacheAnimInstanceProxy->GetSkelMeshComponent()->GetOwner();
 
+
 	//绑定骨骼
 	BindSkeleton(Context.AnimInstanceProxy);
 
@@ -128,6 +132,7 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 		Connected();
 	}
 #endif
+
 }
 
 
