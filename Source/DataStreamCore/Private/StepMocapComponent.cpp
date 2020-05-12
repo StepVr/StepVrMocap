@@ -7,6 +7,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
+#include "Components/ActorComponent.h"
 
 
 
@@ -76,23 +77,29 @@ void UStepMocapComponent::StopRecord()
 		Stream->RecordStop();
 	}
 
-	IPlatformFile& FilePtr = FPlatformFileManager::Get().GetPlatformFile();
-	
-	//转移
-	FString SavePath = FPaths::ProjectSavedDir() + TEXT("StepRecord/") + strRecordName;
-	if (!FPaths::DirectoryExists(SavePath))
-	{
-		FilePtr.CreateDirectoryTree(*SavePath);
-	}
+	FTimerHandle TimerHandle;
+	FString RecordFileName = strRecordName;
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [RecordFileName]()
+		{
+			IPlatformFile& FilePtr = FPlatformFileManager::Get().GetPlatformFile();
 
-	FString StartTPose = TEXT("C:\\StepVR_MMAP\\param\\tposData.bin");
-	FString StartRecord = TEXT("C:\\StepVR_MMAP\\Record\\") + strRecordName + TEXT(".mop");
+			//转移
+			FString SavePath = FPaths::ProjectSavedDir() + TEXT("StepRecord/") + RecordFileName;
+			if (!FPaths::DirectoryExists(SavePath))
+			{
+				FilePtr.CreateDirectoryTree(*SavePath);
+			}
 
-	FString EndTPose = SavePath + TEXT("\\tposData.bin");
-	FString EndRecord = SavePath + TEXT("\\Data.mop");
+			FString StartTPose = TEXT("C:\\StepVR_MMAP\\param\\tposData.bin");
+			FString StartRecord = TEXT("C:\\StepVR_MMAP\\Record\\") + RecordFileName + TEXT(".mop");
 
-	FilePtr.CopyFile(*EndTPose, *StartTPose);
-	FilePtr.CopyFile(*EndRecord, *StartRecord);
+			FString EndTPose = SavePath + TEXT("\\tposData.bin");
+			FString EndRecord = SavePath + TEXT("\\Data.mop");
+
+			FilePtr.CopyFile(*EndTPose, *StartTPose);
+			FilePtr.CopyFile(*EndRecord, *StartRecord);
+		} ,1.f,false,1.f);
+
 }
 
 void UStepMocapComponent::PlayRecord(const FString& RecordName)
