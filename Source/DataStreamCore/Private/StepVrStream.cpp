@@ -1,6 +1,4 @@
 ﻿#include "StepVrStream.h"
-#include "StepVrGlobal.h"
-#include "StepVrServerModule.h"
 #include "StepVrDataServer.h"
 #include "StepVrSkt.h"
 
@@ -271,32 +269,32 @@ void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 {
 	if (CacheServerInfo.StepControllState == Remote_Replicate_Y)
 	{
-		TArray<FTransform> SkeletonData;
-		{
-			FScopeLock Lock(&GReplicateSkeletonCS);
-			auto FindData = GReplicateSkeletonRT.Find(CacheServerInfo.AddrValue);
-			if (FindData == nullptr)
-			{
-				return;
-			}
+		//TArray<FTransform> SkeletonData;
+		//{
+		//	FScopeLock Lock(&GReplicateSkeletonCS);
+		//	auto FindData = GReplicateSkeletonRT.Find(CacheServerInfo.AddrValue);
+		//	if (FindData == nullptr)
+		//	{
+		//		return;
+		//	}
 
-			SkeletonData = *FindData;
-		}
+		//	SkeletonData = *FindData;
+		//}
 
-		if (SkeletonData.Num() != STEPBONESNUMS)
-		{
-			return;
-		}
+		//if (SkeletonData.Num() != STEPBONESNUMS)
+		//{
+		//	return;
+		//}
 
-		for (auto& Temp : UE4BoneIndices)
-		{
-			if (Temp.MapBoneType == EMapBoneType::Bone_Body)
-			{
-				//FTransform Tlerp = UKismetMathLibrary::TLerp(Temp.BoneData, SkeletonData[Temp.StepBoneIndex],CurFrame);
-				//Temp.BoneData = Tlerp;
-				Temp.BoneData = SkeletonData[Temp.StepBoneIndex];
-			}
-		}
+		//for (auto& Temp : UE4BoneIndices)
+		//{
+		//	if (Temp.MapBoneType == EMapBoneType::Bone_Body)
+		//	{
+		//		//FTransform Tlerp = UKismetMathLibrary::TLerp(Temp.BoneData, SkeletonData[Temp.StepBoneIndex],CurFrame);
+		//		//Temp.BoneData = Tlerp;
+		//		Temp.BoneData = SkeletonData[Temp.StepBoneIndex];
+		//	}
+		//}
 	}
 	else
 	{
@@ -611,11 +609,11 @@ void FStepMocapStream::EngineBegineFrame()
 		ServerConnect->GetBodyData(CacheBodyFrameData);
 
 		//同步数据
-		if (UsedServerInfo.StepControllState == FStepControllState::Local_Replicate_Y && 
-			STEPVR_SERVER_IsValid)
-		{
-			STEPVR_SERVER->StepMocapSendData(CacheBodyFrameData);
-		}
+		//if (UsedServerInfo.StepControllState == FStepControllState::Local_Replicate_Y && 
+		//	STEPVR_SERVER_IsValid)
+		//{
+		//	STEPVR_SERVER->StepMocapSendData(CacheBodyFrameData);
+		//}
 	}
 
 	//手套数据

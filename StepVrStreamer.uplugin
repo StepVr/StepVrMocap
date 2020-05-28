@@ -32,11 +32,5 @@
         "Win32"
       ]
     }
-  ],
-  "Plugins": [
-    {
-      "Name": "StepVrPlugin",
-      "Enabled": true
-    }
   ]
 }

@@ -1,5 +1,5 @@
 ﻿#include "AnimNode_StepVrDataStream.h"
-#include "StepVrComponent.h"
+#include "StepMocapComponent.h"
 #include "StepVrSkt.h"
 
 
@@ -307,60 +307,65 @@ FMocapServerInfo FAnimNode_StepDataStream::BuildServerInfo()
 
 void FAnimNode_StepDataStream::CheckInit()
 {
-	IsInit = false;
+	IsInit = true;
+	StepControllState = FStepControllState::Local_Replicate_N;
 
-	do 
-	{
-		if (!IsValid(CacheOwnerActor))
-		{
-			//Finish 不是角色
-			IsInit = true;
-			StepControllState = FStepControllState::Local_Replicate_N;
-			break;
-		}
+	//IsInit = false;
 
-		if (!CacheOwnerActor->HasActorBegunPlay())
-		{
-			break;
-		}
+	//do 
+	//{
+	//	if (!IsValid(CacheOwnerActor))
+	//	{
+	//		//Finish 不是角色
+	//		IsInit = true;
+	//		StepControllState = FStepControllState::Local_Replicate_N;
+	//		break;
+	//	}
 
+	//	if (!CacheOwnerActor->HasActorBegunPlay())
+	//	{
+	//		break;
+	//	}
 
-		TArray<UStepVrComponent*> Coms;
-		CacheOwnerActor->GetComponents(Coms);
-		if (Coms.Num() == 0)
-		{
-			//Finish 没有添加组件，无法同步
-			IsInit = true;
-			StepControllState = FStepControllState::Local_Replicate_N;
-			break;
-		}
+	//	CacheOwnerActor
 
-		UStepVrComponent* TargetCom = Coms[0];
-		if (!TargetCom->bMocapReplicate)
-		{
-			//Finish 不需要同步
-			IsInit = true;
-			StepControllState = FStepControllState::Local_Replicate_N;
-			break;
-		}
+	//	TArray<UStepMocapComponent*> Coms;
+	//	CacheOwnerActor->GetComponents(Coms);
 
-		if (TargetCom->IsLocalControlled())
-		{
-			//Finish 本地角色
-			IsInit = true;
-			StepControllState = FStepControllState::Local_Replicate_Y;
-			break;
-		}
+	//	//Finish 没有添加组件，无法同步
+	//	if (!Coms.IsValidIndex(0))
+	//	{
+	//		IsInit = true;
+	//		StepControllState = FStepControllState::Local_Replicate_N;
+	//		break;
+	//	}
 
-		if (!TargetCom->IsValidPlayerAddr())
-		{
-			break;
-		}
+	//	UStepMocapComponent* TargetCom = Coms[0];
+	//	if (!TargetCom->IsMocapReplicate())
+	//	{
+	//		//Finish 不需要同步
+	//		IsInit = true;
+	//		StepControllState = FStepControllState::Local_Replicate_N;
+	//		break;
+	//	}
 
-		IsInit = true;
-		AddrValue = TargetCom->GetPlayerAddr();
-		StepControllState = FStepControllState::Remote_Replicate_Y;	
-	} while (0);
+	//	if (TargetCom->IsLocalControlled())
+	//	{
+	//		//Finish 本地角色
+	//		IsInit = true;
+	//		StepControllState = FStepControllState::Local_Replicate_Y;
+	//		break;
+	//	}
+
+	//	if (!TargetCom->IsValidPlayerAddr())
+	//	{
+	//		break;
+	//	}
+
+	//	IsInit = true;
+	//	AddrValue = TargetCom->GetPlayerAddr();
+	//	StepControllState = FStepControllState::Remote_Replicate_Y;	
+	//} while (0);
 
 	if (IsInit)
 	{

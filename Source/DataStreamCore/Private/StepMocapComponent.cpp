@@ -122,3 +122,8 @@ void UStepMocapComponent::TPose()
 		Stream->TPose();
 	}
 }
+
+bool UStepMocapComponent::IsMocapReplicate()
+{
+	return bMocapReplicate;
+}

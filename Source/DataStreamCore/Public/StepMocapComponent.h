@@ -12,8 +12,8 @@
 
 
 //控制数据流
-UCLASS(ClassGroup = StepvrClassGroup, meta = (BlueprintSpawnableComponent))
-class UStepMocapComponent : public UActorComponent
+UCLASS(ClassGroup = StepvrClassGroup, BlueprintType, meta = (BlueprintSpawnableComponent))
+class STEPVRDATASTREAMCORE_API UStepMocapComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -25,16 +25,22 @@ public:
 	void UpdateSkt();
 
 	UFUNCTION(BlueprintCallable)
-		void StartRecord(const FString& RecordName);
+	void StartRecord(const FString& RecordName);
 	UFUNCTION(BlueprintCallable)
-		void StopRecord();
+	void StopRecord();
 	UFUNCTION(BlueprintCallable)
-		void PlayRecord(const FString& RecordName);
+	void PlayRecord(const FString& RecordName);
 	UFUNCTION(BlueprintCallable)
-		void GetAllRecords(TArray<FString>& RecordName);
+	void GetAllRecords(TArray<FString>& RecordName);
 	UFUNCTION(BlueprintCallable)
-		void TPose();
+	void TPose();
+
+	bool IsMocapReplicate();
+
 protected:
+	UPROPERTY(BlueprintReadWrite)
+	bool bMocapReplicate = false;
+
 	bool IsRecord = false;
 
 	FString strRecordName;

@@ -72,8 +72,7 @@ public class StepVrDataStreamCore : ModuleRules
         PrivateDependencyModuleNames.AddRange(new string[] {
             "Projects",
             "Json",
-            "JsonUtilities",
-            "StepVrPlugin"
+            "JsonUtilities"
         });
         PublicDependencyModuleNames.AddRange(new string[] {
             "Core",
