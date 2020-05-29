@@ -15,7 +15,7 @@
 
 #include "Launch/Resources/Version.h"
 
-
+static int64 _Frames = 0;
 
 FAnimNode_StepDataStream::FAnimNode_StepDataStream()
 {
@@ -140,6 +140,9 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 {
 	SCOPE_CYCLE_COUNTER(STAT_Update_AnyThread);
 
+	_Frames++;
+	UE_LOG(LogTemp, Log, TEXT("Step Stream pdate : %d"), _Frames);
+
 #if (ENGINE_MAJOR_VERSION>=4) && (ENGINE_MINOR_VERSION>=22)
 	GetEvaluateGraphExposedInputs().Execute(Context);
 #else
@@ -168,6 +171,9 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output)
 {
 	SCOPE_CYCLE_COUNTER(STAT_EvaluateComponentSpace_AnyThread);
+
+	_Frames++;
+	UE_LOG(LogTemp, Log, TEXT("Step Stream Evaluate : %d"), _Frames);
 
 	Output.ResetToRefPose();
 

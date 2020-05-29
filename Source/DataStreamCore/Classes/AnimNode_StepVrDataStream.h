@@ -8,7 +8,7 @@
 class UStepReplicatedComponent;
 
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintInternalUseOnly)
 struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()

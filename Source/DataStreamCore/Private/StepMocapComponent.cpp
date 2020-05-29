@@ -11,14 +11,12 @@
 
 
 
-UStepMocapComponent::UStepMocapComponent(const FObjectInitializer& ObjectInitializer)
-	:Super(ObjectInitializer)
+UStepMocapComponent::UStepMocapComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	bWantsInitializeComponent = true;
 	bAutoActivate = true;
 	SetIsReplicated(false);
-
 }
 
 void UStepMocapComponent::UpdateSkt()
@@ -35,6 +33,24 @@ void UStepMocapComponent::UpdateSkt()
 			Stream->ReplcaeSkt(ServerInfo->SktName);
 		}
 	}
+}
+
+FString UStepMocapComponent::GetSktName()
+{
+	FString OwnerName = GetOwner()->GetName();
+
+	FString SktName = "";
+	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(OwnerName);
+	if (Stream.IsValid())
+	{
+		FMocapServerInfo* ServerInfo = Stream->HasActorName(OwnerName);
+		if (ServerInfo)
+		{
+			SktName = ServerInfo->SktName;
+		}
+	}
+
+	return SktName;
 }
 
 UStepMocapComponent::~UStepMocapComponent()
@@ -123,7 +139,15 @@ void UStepMocapComponent::TPose()
 	}
 }
 
-bool UStepMocapComponent::IsMocapReplicate()
+void UStepMocapComponent::MocapDataState(bool& Server, bool& Body, bool& Hand)
 {
-	return bMocapReplicate;
+	FString OwnerName = GetOwner()->GetName();
+
+	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(OwnerName);
+	if (Stream.IsValid())
+	{
+		Server = Stream->IsConnected();
+		Body = Stream->IsBodyConnect();
+		Hand = Stream->IsHandConnect();
+	}
 }

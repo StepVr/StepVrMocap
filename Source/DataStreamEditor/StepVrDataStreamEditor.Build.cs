@@ -15,5 +15,12 @@ public class StepVrDataStreamEditor : ModuleRules
 
         PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "UnrealEd", "StepVrDataStreamCore",  "AnimGraph", "BlueprintGraph" });
         PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "MessageLog"});
+
+        CircularlyReferencedDependentModules.AddRange(
+                new string[] {
+                "UnrealEd",
+                "GraphEditor",
+                }
+        );
     }
 }
