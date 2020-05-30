@@ -1,4 +1,4 @@
-﻿using UnrealBuildTool;
+using UnrealBuildTool;
 
 public class StepVrDataStreamEditor : ModuleRules
 {
@@ -8,19 +8,35 @@ public class StepVrDataStreamEditor : ModuleRules
 
         PrivateIncludePaths.AddRange(new string[]
         {
-            "DataStreamEditor/Private",
-            "DataStreamEditor/Public",
-            "DataStreamEditor/Classes",
         });
 
-        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "UnrealEd", "StepVrDataStreamCore",  "AnimGraph", "BlueprintGraph" });
-        PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "MessageLog"});
+        PrivateDependencyModuleNames.AddRange(new string[] 
+        {
+            "AnimationCore",
+            "AnimGraphRuntime",
+            "Core",
+            "CoreUObject",
+            "Engine",
 
-        CircularlyReferencedDependentModules.AddRange(
-                new string[] {
-                "UnrealEd",
-                "GraphEditor",
+            "StepVrDataStreamCore",
+
+            "Slate", 
+            "MessageLog",
+        });
+
+
+        if (Target.bBuildEditor == true)
+        {
+            PrivateDependencyModuleNames.AddRange(
+                new string[]
+                {
+                      "UnrealEd",
+                      "Kismet",
+                      "AnimGraph",
+                      "BlueprintGraph",
                 }
-        );
+            );
+        }
+
     }
 }

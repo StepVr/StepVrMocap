@@ -1,4 +1,4 @@
-﻿{
+{
   "FileVersion": 3,
   "Version": 4,
   "VersionName": "4.0.0.2",
@@ -17,20 +17,12 @@
     {
       "Name": "StepVrDataStreamCore",
       "Type": "Runtime",
-      "LoadingPhase": "PreDefault",
-      "WhitelistPlatforms": [
-        "Win64",
-        "Win32"
-      ]
+      "LoadingPhase": "PreDefault"
     },
     {
       "Name": "StepVrDataStreamEditor",
-      "Type": "Editor",
-      "LoadingPhase": "PostEngineInit",
-      "WhitelistPlatforms": [
-        "Win64",
-        "Win32"
-      ]
+      "Type": "UncookedOnly",
+      "LoadingPhase": "Default"
     }
   ]
 }

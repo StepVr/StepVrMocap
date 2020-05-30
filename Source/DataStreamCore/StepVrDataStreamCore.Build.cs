@@ -1,4 +1,4 @@
-﻿using UnrealBuildTool;
+using UnrealBuildTool;
 using System;
 using System.IO;
 
@@ -65,7 +65,6 @@ public class StepVrDataStreamCore : ModuleRules
         {
             "DataStreamCore/Private",
             "DataStreamCore/Public",
-            "DataStreamCore/Classes",
         } );
 
 
