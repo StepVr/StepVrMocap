@@ -142,7 +142,7 @@ void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 		UE4NeedUpdateBones.AddUnique(CurIdnex);
 	
 		FName BoneName = RefSkeleton.GetBoneName(CurIdnex);
-		UE_LOG(LogTemp, Log, TEXT("CurName %d - %s"), CurIdnex, *BoneName.ToString());
+		//UE_LOG(LogTemp, Log, TEXT("CurName %d - %s"), CurIdnex, *BoneName.ToString());
 
 		//父节点
 		
@@ -151,7 +151,7 @@ void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 			if (UE4NeedUpdateBones.Find(CurIdnex) == INDEX_NONE)
 			{
 				FName BoneName1 = RefSkeleton.GetBoneName(CurIdnex);
-				UE_LOG(LogTemp,Log,TEXT("   ParentName %d - %s"),CurIdnex,*BoneName1.ToString());
+				//UE_LOG(LogTemp,Log,TEXT("   ParentName %d - %s"),CurIdnex,*BoneName1.ToString());
 				UE4NeedUpdateBones.Add(CurIdnex);
 			}
 			else

@@ -23,7 +23,6 @@ void StepMocapSpace::ShowMessage(const FString& Log)
 		AsyncTask(ENamedThreads::GameThread, [Log]()
 		{
 			StepMocapSpace::ShowMessage(Log);
-			//UE_LOG(LogStepMocap, Log, TEXT("%s"), *Log);
 		});
 	}
 }

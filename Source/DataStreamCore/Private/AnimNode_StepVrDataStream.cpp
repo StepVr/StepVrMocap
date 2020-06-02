@@ -15,7 +15,7 @@
 
 #include "Launch/Resources/Version.h"
 
-static int64 _Frames = 0;
+
 
 FAnimNode_StepDataStream::FAnimNode_StepDataStream()
 {
@@ -124,36 +124,25 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	//绑定骨骼
 	BindSkeleton(Context.AnimInstanceProxy);
 
-#if WITH_EDITOR
-	if (GWorld->WorldType == EWorldType::Editor)
-	{
-		IsInit = true;
-		StepControllState = FStepControllState::Local_Replicate_N;
-		Connected();
-	}
-#endif
-
+	Connected();
 }
 
 
 void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
-	SCOPE_CYCLE_COUNTER(STAT_Update_AnyThread);
-
+	static int32 _Frames;
 	_Frames++;
+
 	UE_LOG(LogTemp, Log, TEXT("Step Stream pdate : %d"), _Frames);
+
+
+	SCOPE_CYCLE_COUNTER(STAT_Update_AnyThread);
 
 #if (ENGINE_MAJOR_VERSION>=4) && (ENGINE_MINOR_VERSION>=22)
 	GetEvaluateGraphExposedInputs().Execute(Context);
 #else
 	EvaluateGraphExposedInputs.Execute(Context);
 #endif
-
-	if (!IsInit)
-	{
-		CheckInit();
-		return;
-	}
 
 	//骨骼数据
 	mSkeletonBinding.UpdateSkeletonFrameData();
@@ -172,15 +161,11 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 {
 	SCOPE_CYCLE_COUNTER(STAT_EvaluateComponentSpace_AnyThread);
 
+	static int32 _Frames;
 	_Frames++;
 	UE_LOG(LogTemp, Log, TEXT("Step Stream Evaluate : %d"), _Frames);
 
 	Output.ResetToRefPose();
-
-	if (!IsInit)
-	{
-		return;
-	}
 
 	//Scale 
 	FVector CurScale = mSkeletonBinding.GetSkeletonScale();
@@ -300,7 +285,7 @@ FMocapServerInfo FAnimNode_StepDataStream::BuildServerInfo()
 	MocapServerInfo.EnableHand = EnableHand;
 	MocapServerInfo.EnableFace = EnableFace;
 
-	MocapServerInfo.StepControllState = StepControllState;
+	MocapServerInfo.StepControllState = FStepControllState::Local_Replicate_N;
 	MocapServerInfo.AddrValue = AddrValue;
 	MocapServerInfo.SktName = SktName;
 
