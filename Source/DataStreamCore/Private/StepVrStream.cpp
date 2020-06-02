@@ -7,6 +7,99 @@
 #include "Animation/MorphTarget.h"
 #include "Misc/CoreDelegates.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Misc/FileHelper.h"
+#include "Serialization/JsonReader.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
+#include "JsonObjectConverter.h"
+
+
+
+//将动捕数据转化为UE数据
+void ConvertToUE(TArray<FSingleBody>& InData, TArray<FTransform>& OutData)
+{
+	OutData.Empty(STEPBONESNUMS);
+
+	FVector TempVec;
+	FQuat TempQuat;
+	FVector TempScale;
+
+	static const FQuat QBA = FQuat::FQuat(FVector(0, 0, 1), PI);
+	static const FQuat QTE = FQuat::FQuat(FVector(0, 0, 1), -PI / 2.0).Inverse()*FQuat::FQuat(FVector(1, 0, 0), -PI / 2.0).Inverse();
+
+	for (int32 i = 0; i < STEPBONESNUMS; i++)
+	{
+		TempVec.X = InData[i].Location.z * 100;
+		TempVec.Y = InData[i].Location.x * 100;
+		TempVec.Z = InData[i].Location.y * 100;
+
+		TempQuat.X = InData[i].Rotation.x;
+		TempQuat.Y = InData[i].Rotation.y;
+		TempQuat.Z = InData[i].Rotation.z;
+		TempQuat.W = InData[i].Rotation.w;
+
+		TempQuat = TempQuat * QBA;
+		TempQuat = QTE * TempQuat;
+
+		if (!TempQuat.IsNormalized())
+		{
+			break;
+		}
+
+		//根骨骼缩放
+		if (i == 0)
+		{
+			TempScale.X = InData[i].Scale.x;
+			TempScale.Y = InData[i].Scale.y;
+			TempScale.Z = InData[i].Scale.z;
+		}
+		else
+		{
+			TempScale = FVector::OneVector;
+		}
+
+		OutData.Add(FTransform(TempQuat, TempVec, TempScale));
+	}
+
+	if (OutData.Num() != STEPBONESNUMS)
+	{
+		OutData.Empty();
+	}
+}
+
+
+//将手套数据转化为UE数据
+void ConvertToUE(TArray<FVector4f>& InData, TArray<FRotator>& OutData)
+{
+	OutData.Init(FRotator::ZeroRotator, STEPHANDBONESNUMS);
+
+	FQuat TempQuat;
+	static const FQuat QBA = FQuat::FQuat(FVector(0, 0, 1), PI);
+	static const FQuat QTE = FQuat::FQuat(FVector(0, 0, 1), -PI / 2.0).Inverse()*FQuat::FQuat(FVector(1, 0, 0), -PI / 2.0).Inverse();
+	for (int32 i = 0; i < STEPHANDBONESNUMS; i++)
+	{
+		TempQuat.X = InData[i].x;
+		TempQuat.Y = InData[i].y;
+		TempQuat.Z = InData[i].z;
+		TempQuat.W = InData[i].w;
+
+		TempQuat = TempQuat * QBA;
+		TempQuat = QTE * TempQuat;
+
+		if (!TempQuat.IsNormalized())
+		{
+			FString Message = FString::Printf(TEXT("%f--%f--%f--%f"), TempQuat.X, TempQuat.Y, TempQuat.Z, TempQuat.W);
+			StepMocapSpace::ShowMessage(Message);
+			OutData.Empty();
+			break;
+		}
+
+		OutData[i] = TempQuat.Rotator();
+	}
+}
+
+
+
 
 
 
@@ -265,78 +358,101 @@ void FStepDataToSkeletonBinding::ResetMocapStream()
 	}
 }
 
+void FStepDataToSkeletonBinding::LoadReplayData()
+{
+	//数据初始化
+	ReplayJsonData.Empty();
+	iCurUseDataFrames = 0;
+	iCurFrames = 0;
+
+	//加载回放数据
+	FString FilePath = TEXT("C:\\Users\\77276\\Desktop\\2020-05-15-11_35_29.json");
+
+	FString JsonData;
+	if (FFileHelper::LoadFileToString(JsonData, *FilePath))
+	{
+		auto JsonReader = TJsonReaderFactory<>::Create(JsonData);
+		TSharedPtr<FJsonObject> JsonRoot;
+
+		if (FJsonSerializer::Deserialize(JsonReader, JsonRoot))
+		{
+			if (FJsonObjectConverter::JsonObjectToUStruct<FReplayJsonData>(JsonRoot.ToSharedRef(), &ReplayJsonData))
+			{
+				UE_LOG(LogTemp,Log,TEXT("Step Load ReplayJson Success"));
+			}
+		}
+	}
+}
+
 void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 {
-	if (CacheServerInfo.StepControllState == Remote_Replicate_Y)
+	//找到对时后动捕数据
+	float Interval = 1.f / 30 * 1000;
+
+	float TargetTime = iCurFrames * Interval;
+
+	float curCompare = 10000.f;
+	for (int32 i = iCurUseDataFrames; i < ReplayJsonData.EndData.Num(); i++)
 	{
-		//TArray<FTransform> SkeletonData;
-		//{
-		//	FScopeLock Lock(&GReplicateSkeletonCS);
-		//	auto FindData = GReplicateSkeletonRT.Find(CacheServerInfo.AddrValue);
-		//	if (FindData == nullptr)
-		//	{
-		//		return;
-		//	}
-
-		//	SkeletonData = *FindData;
-		//}
-
-		//if (SkeletonData.Num() != STEPBONESNUMS)
-		//{
-		//	return;
-		//}
-
-		//for (auto& Temp : UE4BoneIndices)
-		//{
-		//	if (Temp.MapBoneType == EMapBoneType::Bone_Body)
-		//	{
-		//		//FTransform Tlerp = UKismetMathLibrary::TLerp(Temp.BoneData, SkeletonData[Temp.StepBoneIndex],CurFrame);
-		//		//Temp.BoneData = Tlerp;
-		//		Temp.BoneData = SkeletonData[Temp.StepBoneIndex];
-		//	}
-		//}
+		float curCompareInterval = FMath::Abs(ReplayJsonData.EndData[i].timeStamp - TargetTime);
+		if (curCompare > curCompareInterval)
+		{
+			curCompare = curCompareInterval;
+			iCurUseDataFrames = i;
+		}
+		else
+		{
+			break;
+		}
 	}
-	else
+
+	//没有找到对应数据，退出
+	if (curCompare > 1000)
 	{
-		if (!StepMpcapStream.IsValid())
+		UE_LOG(LogTemp, Log, TEXT("Step Can Not Find Replay Data"));
+		return;
+	}
+
+	iCurFrames++;
+
+	TArray<FTransform> Body;
+	TArray<FRotator> Hand;
+
+	ConvertToUE(ReplayJsonData.EndData[iCurUseDataFrames].body, Body);
+	ConvertToUE(ReplayJsonData.EndData[iCurUseDataFrames].hand, Hand);
+
+
+	//预备数据
+	bool bBodyData = Body.Num() == STEPBONESNUMS;
+	bool bHandData = Hand.Num() == STEPHANDBONESNUMS;
+
+	//骨骼缩放
+	if (bBodyData)
+	{
+		//SkeletonScale = BodyData[0].GetScale3D();
+	}
+
+	//动捕数据
+	for (auto& Temp : UE4BoneIndices)
+	{
+		switch (Temp.MapBoneType)
 		{
-			return;
+		case EMapBoneType::Bone_Body:
+		{
+			if (bBodyData)
+			{
+				Temp.BoneData = Body[Temp.StepBoneIndex];
+			}
 		}
-
-		auto BodyData = StepMpcapStream->GetBonesTransform_Body();
-		bool bBodyData = BodyData.Num() == STEPBONESNUMS;
-
-		auto HandData = StepMpcapStream->GetBonesTransform_Hand();
-		bool bHandData = CacheServerInfo.EnableHand && HandData.Num() == STEPHANDBONESNUMS;
-
-		//动捕缩放
-		if (bBodyData)
+		break;
+		case EMapBoneType::Bone_Hand:
 		{
-			SkeletonScale = BodyData[0].GetScale3D();
+			if (bHandData)
+			{
+				Temp.BoneData = FTransform(Hand[Temp.StepBoneIndex]);
+			}
 		}
-
-		//动捕数据
-		for (auto& Temp : UE4BoneIndices)
-		{
-			switch (Temp.MapBoneType)
-			{
-			case EMapBoneType::Bone_Body:
-			{
-				if (bBodyData)
-				{
-					Temp.BoneData = BodyData[Temp.StepBoneIndex];
-				}
-			}
-			break;
-			case EMapBoneType::Bone_Hand:
-			{
-				if (bHandData)
-				{
-					Temp.BoneData = FTransform(HandData[Temp.StepBoneIndex]);
-				}
-			}
-			break;
-			}
+		break;
 		}
 	}
 }

@@ -117,6 +117,7 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	// Forward to the incoming pose link.
 	check(Context.AnimInstanceProxy != nullptr);
 
+	//获取Actor
 	CacheAnimInstanceProxy = Context.AnimInstanceProxy;
 	CacheOwnerActor = CacheAnimInstanceProxy->GetSkelMeshComponent()->GetOwner();
 
@@ -124,7 +125,7 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	//绑定骨骼
 	BindSkeleton(Context.AnimInstanceProxy);
 
-	Connected();
+	mSkeletonBinding.LoadReplayData();
 }
 
 
@@ -148,7 +149,7 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 	mSkeletonBinding.UpdateSkeletonFrameData();
 
 	//面部数据
-	mSkeletonBinding.UpdateFaceFrameData();
+	//mSkeletonBinding.UpdateFaceFrameData();
 }
 
 //FGraphEventRef oExecOnGameThread(TFunction<void()> funcLambda)

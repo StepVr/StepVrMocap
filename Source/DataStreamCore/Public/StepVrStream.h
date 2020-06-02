@@ -2,6 +2,82 @@
 
 #include "StepMocapDefine.h"
 #include "Animation/AnimNodeBase.h"
+#include "StepVrStream.generated.h"
+
+USTRUCT()
+struct FVector3f
+{
+	GENERATED_USTRUCT_BODY()
+	UPROPERTY()
+		float x;
+	UPROPERTY()
+		float y;
+	UPROPERTY()
+		float z;
+};
+USTRUCT()
+struct FVector4f
+{
+	GENERATED_USTRUCT_BODY()
+		UPROPERTY()
+		float x;
+	UPROPERTY()
+		float y;
+	UPROPERTY()
+		float z;
+	UPROPERTY()
+		float w;
+};
+
+USTRUCT()
+struct FSingleBody
+{
+	GENERATED_USTRUCT_BODY()
+	UPROPERTY()
+		FVector3f Location;
+	UPROPERTY()
+		FVector4f Rotation;
+	UPROPERTY()
+		FVector3f Scale;
+
+	FTransform ToTransform()
+	{
+		FTransform Temp;
+		Temp.SetLocation(FVector(Location.x, Location.y, Location.z));
+		Temp.SetRotation(FQuat(Rotation.x, Rotation.y, Rotation.z, Rotation.w));
+		Temp.SetScale3D(FVector(Scale.x, Scale.y, Scale.z));
+
+		return Temp;
+	}
+};
+
+USTRUCT()
+struct FSingleFrame
+{
+	GENERATED_USTRUCT_BODY()
+	UPROPERTY()
+		int32 timeStamp;
+	UPROPERTY()
+		FVector3f lossyScale;
+	UPROPERTY()
+		TArray<FSingleBody> body;
+	UPROPERTY()
+		TArray<FVector4f> hand;
+};
+
+
+USTRUCT()
+struct FReplayJsonData
+{
+	GENERATED_USTRUCT_BODY()
+	UPROPERTY()
+	TArray<FSingleFrame> EndData;
+
+	void Empty()
+	{
+		EndData.Empty();
+	}
+};
 
 
 class StepVrDataServer;
@@ -155,7 +231,18 @@ public:
 
 	void ResetMocapStream();
 
+	void LoadReplayData();
+
 private:
+	//回放数据
+	FReplayJsonData ReplayJsonData;
+
+	//当前帧数
+	int32 iCurFrames;
+
+	//当前使用数据得序列号
+	int32 iCurUseDataFrames;
+
 	FMocapServerInfo CacheServerInfo;
 
 	
