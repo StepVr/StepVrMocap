@@ -69,7 +69,7 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	 * 服务器IP
 	 * 支持局域网IP
 	 */
-	UPROPERTY(EditAnywhere, Category=Server, meta=(PinShownByDefault))
+	UPROPERTY(EditAnywhere, Category=Server/*, meta=(PinShownByDefault)*/)
 	FName ServerName = TEXT("127.0.0.1");
 
 	/**

@@ -1,4 +1,4 @@
-using UnrealBuildTool;
+﻿using UnrealBuildTool;
 using System;
 using System.IO;
 
@@ -77,7 +77,8 @@ public class StepVrDataStreamCore : ModuleRules
             "Core",
             "CoreUObject",
             "Engine",
-            "Sockets"
+            "Sockets",
+            "IntegrationConfig"
         });
 
         //加载DLL

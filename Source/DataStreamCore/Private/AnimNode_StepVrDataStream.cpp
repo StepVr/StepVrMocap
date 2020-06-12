@@ -1,7 +1,7 @@
 ﻿#include "AnimNode_StepVrDataStream.h"
 #include "StepMocapComponent.h"
 #include "StepVrSkt.h"
-
+#include "IntegrationConfigBPLibrary.h"
 
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/MorphTarget.h"
@@ -11,9 +11,12 @@
 #include "IPAddress.h"
 
 #include "Misc/CoreMiscDefines.h"
+#include "Misc/Parse.h"
+
 #include "Async/Async.h"
 
 #include "Launch/Resources/Version.h"
+
 
 
 
@@ -125,7 +128,16 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	//绑定骨骼
 	BindSkeleton(Context.AnimInstanceProxy);
 
-	mSkeletonBinding.LoadReplayData();
+	//Sequence录制阶段读取回放数据，其他阶段实时数据
+	bool const bReplay = FParse::Param(FCommandLine::Get(), TEXT("StepReplay"));
+	if (bReplay)
+	{
+		mSkeletonBinding.LoadReplayData();
+	}
+	else
+	{
+		Connected();
+	}
 }
 
 
@@ -248,15 +260,15 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 	}
 
 	//更新面部捕捉
-	USkeletalMeshComponent* SkeletonComponet = Output.AnimInstanceProxy->GetSkelMeshComponent();
-	if (SkeletonComponet)
-	{
-		auto FaceBindData = mSkeletonBinding.GetUE4FaceData();
-		for (auto& TempItr : FaceBindData)
-		{
-			SkeletonComponet->SetMorphTarget(TempItr.UE4MarphName, TempItr.MorphValue);
-		}
-	}
+	//USkeletalMeshComponent* SkeletonComponet = Output.AnimInstanceProxy->GetSkelMeshComponent();
+	//if (SkeletonComponet)
+	//{
+	//	auto FaceBindData = mSkeletonBinding.GetUE4FaceData();
+	//	for (auto& TempItr : FaceBindData)
+	//	{
+	//		SkeletonComponet->SetMorphTarget(TempItr.UE4MarphName, TempItr.MorphValue);
+	//	}
+	//}
 }
 
 //void FAnimNode_StepDataStream::CacheBones_AnyThread(const FAnimationCacheBonesContext & Context)
@@ -278,8 +290,7 @@ FMocapServerInfo FAnimNode_StepDataStream::BuildServerInfo()
 {
 	FMocapServerInfo MocapServerInfo;
 
-	//MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
-	MocapServerInfo.ServerIP = ServerName.ToString();
+	MocapServerInfo.ServerIP = UIntegrationConfigBPLibrary::ReadString("MocapServiceIP", "");
 	MocapServerInfo.ServerPort = PortNumber;
 	//MocapServerInfo.EnableBody = EnableBody;
 

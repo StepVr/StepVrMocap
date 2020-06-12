@@ -365,11 +365,14 @@ void FStepDataToSkeletonBinding::LoadReplayData()
 	iCurUseDataFrames = 0;
 	iCurFrames = 0;
 
-	//加载回放数据
-	FString FilePath = TEXT("C:\\Users\\77276\\Desktop\\2020-05-15-11_35_29.json");
+	//解析CMD,查找录制路径
+	FString RecordPath;
+	FParse::Value(FCommandLine::Get(), TEXT("-StepRecordPath="), RecordPath);
+	RecordPath.Append(TEXT("\\RecordData.json"));
 
+	bool LoadSuccess = false;
 	FString JsonData;
-	if (FFileHelper::LoadFileToString(JsonData, *FilePath))
+	if (FFileHelper::LoadFileToString(JsonData, *RecordPath))
 	{
 		auto JsonReader = TJsonReaderFactory<>::Create(JsonData);
 		TSharedPtr<FJsonObject> JsonRoot;
@@ -378,81 +381,131 @@ void FStepDataToSkeletonBinding::LoadReplayData()
 		{
 			if (FJsonObjectConverter::JsonObjectToUStruct<FReplayJsonData>(JsonRoot.ToSharedRef(), &ReplayJsonData))
 			{
-				UE_LOG(LogTemp,Log,TEXT("Step Load ReplayJson Success"));
+				LoadSuccess = true;
 			}
 		}
+	}
+
+	if (LoadSuccess)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Step Load ReplayJson Success"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Step Load ReplayJson Faild"));
 	}
 }
 
 void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 {
-	//找到对时后动捕数据
-	float Interval = 1.f / 30 * 1000;
-
-	float TargetTime = iCurFrames * Interval;
-
-	float curCompare = 10000.f;
-	for (int32 i = iCurUseDataFrames; i < ReplayJsonData.EndData.Num(); i++)
+	if (StepMpcapStream.IsValid())
 	{
-		float curCompareInterval = FMath::Abs(ReplayJsonData.EndData[i].timeStamp - TargetTime);
-		if (curCompare > curCompareInterval)
+		auto BodyData = StepMpcapStream->GetBonesTransform_Body();
+		bool bBodyData = BodyData.Num() == STEPBONESNUMS;
+
+		auto HandData = StepMpcapStream->GetBonesTransform_Hand();
+		bool bHandData = CacheServerInfo.EnableHand && HandData.Num() == STEPHANDBONESNUMS;
+
+		//动捕缩放
+		if (bBodyData)
 		{
-			curCompare = curCompareInterval;
-			iCurUseDataFrames = i;
+			SkeletonScale = BodyData[0].GetScale3D();
 		}
-		else
+
+		//动捕数据
+		for (auto& Temp : UE4BoneIndices)
 		{
+			switch (Temp.MapBoneType)
+			{
+			case EMapBoneType::Bone_Body:
+			{
+				if (bBodyData)
+				{
+					Temp.BoneData = BodyData[Temp.StepBoneIndex];
+				}
+			}
 			break;
-		}
-	}
-
-	//没有找到对应数据，退出
-	if (curCompare > 1000)
-	{
-		UE_LOG(LogTemp, Log, TEXT("Step Can Not Find Replay Data"));
-		return;
-	}
-
-	iCurFrames++;
-
-	TArray<FTransform> Body;
-	TArray<FRotator> Hand;
-
-	ConvertToUE(ReplayJsonData.EndData[iCurUseDataFrames].body, Body);
-	ConvertToUE(ReplayJsonData.EndData[iCurUseDataFrames].hand, Hand);
-
-
-	//预备数据
-	bool bBodyData = Body.Num() == STEPBONESNUMS;
-	bool bHandData = Hand.Num() == STEPHANDBONESNUMS;
-
-	//骨骼缩放
-	if (bBodyData)
-	{
-		//SkeletonScale = BodyData[0].GetScale3D();
-	}
-
-	//动捕数据
-	for (auto& Temp : UE4BoneIndices)
-	{
-		switch (Temp.MapBoneType)
-		{
-		case EMapBoneType::Bone_Body:
-		{
-			if (bBodyData)
+			case EMapBoneType::Bone_Hand:
 			{
-				Temp.BoneData = Body[Temp.StepBoneIndex];
+				if (bHandData)
+				{
+					Temp.BoneData = FTransform(HandData[Temp.StepBoneIndex]);
+				}
+			}
+			break;
 			}
 		}
-		break;
-		case EMapBoneType::Bone_Hand:
+	}
+	else
+	{
+		//找到对时后动捕数据
+		float Interval = 1.f / 30 * 1000;
+
+		float TargetTime = iCurFrames * Interval;
+
+		float curCompare = 10000.f;
+		for (int32 i = iCurUseDataFrames; i < ReplayJsonData.EndData.Num(); i++)
 		{
-			if (bHandData)
+			float curCompareInterval = FMath::Abs(ReplayJsonData.EndData[i].timeStamp - TargetTime);
+			if (curCompare > curCompareInterval)
 			{
-				Temp.BoneData = FTransform(Hand[Temp.StepBoneIndex]);
+				curCompare = curCompareInterval;
+				iCurUseDataFrames = i;
+			}
+			else
+			{
+				break;
 			}
 		}
-		break;
+
+		//没有找到对应数据，退出
+		if (curCompare > 1000)
+		{
+			UE_LOG(LogTemp, Log, TEXT("Step Can Not Find Replay Data"));
+			return;
+		}
+
+		iCurFrames++;
+
+		TArray<FTransform> Body;
+		TArray<FRotator> Hand;
+
+		ConvertToUE(ReplayJsonData.EndData[iCurUseDataFrames].body, Body);
+		ConvertToUE(ReplayJsonData.EndData[iCurUseDataFrames].hand, Hand);
+
+
+		//预备数据
+		bool bBodyData = Body.Num() == STEPBONESNUMS;
+		bool bHandData = Hand.Num() == STEPHANDBONESNUMS;
+
+		//骨骼缩放
+		if (bBodyData)
+		{
+			//SkeletonScale = BodyData[0].GetScale3D();
+		}
+
+		//动捕数据
+		for (auto& Temp : UE4BoneIndices)
+		{
+			switch (Temp.MapBoneType)
+			{
+			case EMapBoneType::Bone_Body:
+			{
+				if (bBodyData)
+				{
+					Temp.BoneData = Body[Temp.StepBoneIndex];
+				}
+			}
+			break;
+			case EMapBoneType::Bone_Hand:
+			{
+				if (bHandData)
+				{
+					Temp.BoneData = FTransform(Hand[Temp.StepBoneIndex]);
+				}
+			}
+			break;
+			}
 		}
 	}
 }
