@@ -105,6 +105,7 @@ public:
 private:
 	FMocapServerInfo BuildServerInfo();
 	void CheckInit();
+	bool CheckIPChanged();
 
 	//绑定骨架
 	FStepDataToSkeletonBinding mSkeletonBinding;
@@ -118,5 +119,9 @@ private:
 	FStepControllState StepControllState = FStepControllState::Local_Replicate_N;
 	bool IsInit = false;
 	uint32 AddrValue = 0;
+
+	//是否连接
+	bool bConnected = false;
+	FString ConnectServerIP = "";
 };
 

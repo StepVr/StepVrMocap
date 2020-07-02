@@ -54,7 +54,7 @@ FAnimNode_StepDataStream::~FAnimNode_StepDataStream()
 
 void FAnimNode_StepDataStream::Connected()
 {
-	mSkeletonBinding.ConnectToServer(BuildServerInfo());
+	bConnected = mSkeletonBinding.ConnectToServer(BuildServerInfo());
 }
 
 void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProxy)
@@ -151,7 +151,10 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 		CheckInit();
 		return;
 	}
-
+	if (CheckIPChanged())
+	{
+		Connected();
+	}
 	//骨骼数据
 	mSkeletonBinding.UpdateSkeletonFrameData();
 
@@ -287,7 +290,8 @@ FMocapServerInfo FAnimNode_StepDataStream::BuildServerInfo()
 	FMocapServerInfo MocapServerInfo;
 
 	//MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
-	MocapServerInfo.ServerIP = ServerName.ToString();
+	ConnectServerIP = ServerName.ToString();
+	MocapServerInfo.ServerIP = ConnectServerIP;
 	MocapServerInfo.ServerPort = PortNumber;
 	//MocapServerInfo.EnableBody = EnableBody;
 
@@ -371,4 +375,9 @@ void FAnimNode_StepDataStream::CheckInit()
 	{
 		Connected();
 	}
+}
+
+bool FAnimNode_StepDataStream::CheckIPChanged()
+{
+	return bConnected && (!(ConnectServerIP.Equals(ServerName.ToString())));
 }
