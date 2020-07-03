@@ -15,15 +15,17 @@ DECLARE_CYCLE_STAT(TEXT("EvaluateComponentSpace_AnyThread"), STAT_EvaluateCompon
 /**
  * 全局函数
  */
-namespace StepMocapSpace
+class StepMocapSpace
 {
-	
-	void ShowMessage(const FString& Log);
-	FString GetLocalIP();
-	FString Convert2LocalIP(const FString& NewIP);
-	bool    IsLocalIP(const FString& CheckIP);
+public:
+	static void		ShowMessage(const FString& Log);
+	static FString	GetLocalIP();
+	static FString	Convert2LocalIP(const FString& NewIP);
+	static bool		IsLocalIP(const FString& CheckIP);
 
-}
+	//是否打印Log
+	static bool bShowLog;
+};
 
 /**
  * 联机状态
@@ -55,7 +57,7 @@ struct FMocapServerInfo
 	uint32 AddrValue;
 
 	//ActorName
-	FString OwnerActorName;
+	uint32 UID;
 
 	//skt Name
 	FString SktName;
@@ -66,7 +68,7 @@ struct FMocapServerInfo
 		EnableHand(false),
 		EnableFace(false),
 		AddrValue(0),
-		OwnerActorName("Null"),
+		UID(0),
 		SktName("")
 	{
 		StepControllState = FStepControllState::Local_Replicate_N;

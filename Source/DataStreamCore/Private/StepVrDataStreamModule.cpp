@@ -2,6 +2,7 @@
 #include "Engine.h"
 #include "StepMocapDefine.h"
 #include "StepVrSkt.h"
+#include "IntegrationConfigBPLibrary.h"
 
 
 
@@ -18,6 +19,9 @@ void FreeHandle()
 
 void FStepDataStreamModule::StartupModule()
 {
+	//时候显示LOG
+	StepMocapSpace::bShowLog = UIntegrationConfigBPLibrary::ReadStringToBool("ShowLog", "");
+
 	//加载动捕skt
 	STEPVRSKT->LoadSkt();
 

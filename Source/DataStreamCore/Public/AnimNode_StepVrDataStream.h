@@ -66,8 +66,7 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	TMap<FString, FString>	BindMorphTarget;
 
 	/**
-	 * 服务器IP
-	 * 支持局域网IP
+	 * 服务器IP在C/GameConfig/StepConfig中进行配置
 	 */
 	UPROPERTY(EditAnywhere, Category=Server/*, meta=(PinShownByDefault)*/)
 	FName ServerName = TEXT("127.0.0.1");
@@ -75,7 +74,7 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	/**
 	 * 是否根据TPOSE缩放骨骼
 	 */
-	UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault))
+	UPROPERTY(EditAnywhere, Category = Server/*, meta = (PinShownByDefault)*/)
 	bool ApplyScale = false;
 
 	/**
@@ -85,6 +84,11 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	UPROPERTY(EditAnywhere, Category=Server)
 	int32 PortNumber = 9516;
 
+	UPROPERTY(EditAnywhere, Category = Server)
+	bool bReplayDataTest = false;
+
+	UPROPERTY(EditAnywhere, Category = Server)
+	FString sReplayPath;
 public:	
 
 	FAnimNode_StepDataStream();

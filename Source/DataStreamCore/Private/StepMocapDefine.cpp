@@ -11,6 +11,9 @@
 DEFINE_LOG_CATEGORY(LogStepMocap)
 
 TArray<FString> StepFaceMorphTargets = {};
+bool StepMocapSpace::bShowLog = false;
+
+
 
 void StepMocapSpace::ShowMessage(const FString& Log)
 {

@@ -97,7 +97,7 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 		}
 	}
 
-	if (!EnableHand)
+	if (EnableHand == false)
 	{
 		BindMocapHandBones.Empty();
 	}
@@ -124,30 +124,43 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	CacheAnimInstanceProxy = Context.AnimInstanceProxy;
 	CacheOwnerActor = CacheAnimInstanceProxy->GetSkelMeshComponent()->GetOwner();
 
-
 	//绑定骨骼
 	BindSkeleton(Context.AnimInstanceProxy);
 
-	//Sequence录制阶段读取回放数据，其他阶段实时数据
-	bool const bReplay = FParse::Param(FCommandLine::Get(), TEXT("StepReplay"));
-	if (bReplay)
+
+	do 
 	{
-		mSkeletonBinding.LoadReplayData();
-	}
-	else
-	{
+		//Sequence录制阶段读取回放数据，其他阶段实时数据
+		bool const bReplay = FParse::Param(FCommandLine::Get(), TEXT("StepReplay"));
+		if (bReplay)
+		{
+			mSkeletonBinding.LoadReplayData();
+			break;
+		}
+
+		//测试json回放数据
+		if (bReplayDataTest)
+		{
+			mSkeletonBinding.LoadReplayData(sReplayPath);
+			break;
+		}
+
+		//正常连接
+		ServerName = FName(*UIntegrationConfigBPLibrary::ReadString("MocapServiceIP", ""));
 		Connected();
-	}
+	} while (0);
 }
 
 
 void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
-	static int32 _Frames;
-	_Frames++;
+	if (StepMocapSpace::bShowLog)
+	{
+		static int32 _Frames;
+		_Frames++;
 
-	UE_LOG(LogTemp, Log, TEXT("Step Stream pdate : %d"), _Frames);
-
+		UE_LOG(LogTemp, Log, TEXT("Step Stream pdate : %d"), _Frames);
+	}
 
 	SCOPE_CYCLE_COUNTER(STAT_Update_AnyThread);
 
@@ -174,9 +187,12 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 {
 	SCOPE_CYCLE_COUNTER(STAT_EvaluateComponentSpace_AnyThread);
 
-	static int32 _Frames;
-	_Frames++;
-	UE_LOG(LogTemp, Log, TEXT("Step Stream Evaluate : %d"), _Frames);
+	if (StepMocapSpace::bShowLog)
+	{
+		static int32 _Frames;
+		_Frames++;
+		UE_LOG(LogTemp, Log, TEXT("Step Stream Evaluate : %d"), _Frames);
+	}
 
 	Output.ResetToRefPose();
 
@@ -234,10 +250,10 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 			break;
 			}
 
-			//if (ApplyScale && CurScale.X > 0.1f)
-			//{
-			//	MapBoneData.BoneData.ScaleTranslation(1.f / CurScale.X);
-			//}
+			if (ApplyScale && CurScale.X > 0.1f)
+			{
+				MapBoneData.BoneData.ScaleTranslation(1.f / CurScale.X);
+			}
 			Output.Pose.SetComponentSpaceTransform(BoneIndex, MapBoneData.BoneData);
 			StepIndex++;
 		}
@@ -290,7 +306,8 @@ FMocapServerInfo FAnimNode_StepDataStream::BuildServerInfo()
 {
 	FMocapServerInfo MocapServerInfo;
 
-	MocapServerInfo.ServerIP = UIntegrationConfigBPLibrary::ReadString("MocapServiceIP", "");
+	MocapServerInfo.ServerIP = ServerName.ToString();
+	//MocapServerInfo.ServerIP = "127.0.0.1";
 	MocapServerInfo.ServerPort = PortNumber;
 	//MocapServerInfo.EnableBody = EnableBody;
 
@@ -303,7 +320,7 @@ FMocapServerInfo FAnimNode_StepDataStream::BuildServerInfo()
 
 	if (CacheOwnerActor)
 	{
-		MocapServerInfo.OwnerActorName = CacheOwnerActor->GetName();
+		MocapServerInfo.UID = CacheOwnerActor->GetUniqueID();
 	}
 	return MocapServerInfo;
 }

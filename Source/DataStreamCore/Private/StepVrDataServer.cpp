@@ -1,7 +1,25 @@
 ﻿#include "StepVrDataServer.h"
 #include "StepIkClientCpp.h"
 #include "StepMocapDefine.h"
+
+
+
+
 #include "Misc/CoreDelegates.h"
+#include "Misc/FileHelper.h"
+
+
+#define TESTREPLAY false
+#if TESTREPLAY
+#include "StepVrStream.h"
+#include "Misc/FileHelper.h"
+#include "Serialization/JsonReader.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
+#include "JsonObjectConverter.h"
+static FReplayJsonData GReplayJsonData;
+static int32			GCurFrames = 0;
+#endif
 
 
 static float		GStepFaceData[STEPFACEMORGHNUMS];
@@ -287,6 +305,31 @@ void FServicesData::Connect2Server(const FString& IP, int32 port)
 	StepIK_Client::Connect(TCHAR_TO_ANSI(*IP), port);
 
 	HandleDelegate = FCoreDelegates::OnBeginFrame.AddRaw(this, &FServicesData::MMapFrameBegin);
+
+
+#if TESTREPLAY
+	//数据初始化
+	GReplayJsonData.Empty();
+
+	//解析CMD,查找录制路径
+	FString RecordPath = TEXT("C:\\Users\\77276\\Desktop\\jump.json");
+
+	bool LoadSuccess = false;
+	FString JsonData;
+	if (FFileHelper::LoadFileToString(JsonData, *RecordPath))
+	{
+		auto JsonReader = TJsonReaderFactory<>::Create(JsonData);
+		TSharedPtr<FJsonObject> JsonRoot;
+
+		if (FJsonSerializer::Deserialize(JsonReader, JsonRoot))
+		{
+			if (FJsonObjectConverter::JsonObjectToUStruct<FReplayJsonData>(JsonRoot.ToSharedRef(), &GReplayJsonData))
+			{
+				LoadSuccess = true;
+			}
+		}
+	}
+#endif
 }
 
 void FServicesData::DisConnect()
@@ -300,60 +343,59 @@ void FServicesData::DisConnect()
 
 bool FServicesData::IsConnected()
 {
+#if TESTREPLAY
+	GCurFrames++;
+	GCurFrames = GCurFrames % GReplayJsonData.EndData.Num();
+#endif
 	return StepIK_Client::IsConnected();
 }
 
 void FServicesData::GetBodyData(TArray<FTransform>& OutData)
 {
 	//修改根骨骼缩放
+#if TESTREPLAY
+
+	//转换动捕数据		
+	auto& TempBody = GReplayJsonData.EndData[GCurFrames].body;
+	for (int32 i = 0; i < TempBody.Num(); i++)
+	{
+		GStepMocapData[i].Location.x = TempBody[i].Location.x;
+		GStepMocapData[i].Location.y = TempBody[i].Location.y;
+		GStepMocapData[i].Location.z = TempBody[i].Location.z;
+		GStepMocapData[i].Rotation.w = TempBody[i].Rotation.w;
+		GStepMocapData[i].Rotation.x = TempBody[i].Rotation.x;
+		GStepMocapData[i].Rotation.y = TempBody[i].Rotation.y;
+		GStepMocapData[i].Rotation.z = TempBody[i].Rotation.z;
+}
+#else
 	V3 CurScale;
 	StepIK_Client::GetLossyScale(&CurScale);
 
 	StepIK_Client::getData((transform*)GStepMocapData);
 	GStepMocapData[0].Scale = CurScale;
+#endif
 
 	ConvertToUE(GStepMocapData,OutData);
 }
 
 
-//测试手部数据
-//#include "FileHelper.h"
-//#include "BufferArchive.h"
-//#include "Paths.h"
-//#include "MemoryReader.h"
 void FServicesData::GetHandData(TArray<FRotator>& OutData)
 {
+#if TESTREPLAY
+	auto& TempHand = GReplayJsonData.EndData[GCurFrames].hand;
+	//转换手部数据
+	for (int32 i = 0; i < TempHand.Num(); i++)
+	{
+		GStepHandData[i].w = TempHand[i].w;
+		GStepHandData[i].x = TempHand[i].x;
+		GStepHandData[i].y = TempHand[i].y;
+		GStepHandData[i].z = TempHand[i].z;
+	}
+#else
 	StepIK_Client::GetGloveData(GStepHandData);
+#endif
+
 	ConvertToUE(GStepHandData,OutData);
-
-
-
-//#if 0
-//	FBufferArchive ToBinary;
-//	ToBinary << OutData;
-//
-//	FString savePath = FPaths::GameSavedDir().Append(TEXT("/data.a"));
-//	FFileHelper::SaveArrayToFile(ToBinary, *savePath);
-//
-//#else
-//	static TArray<FRotator> __Rotators;
-//	if (__Rotators.Num() == 0)
-//	{
-//		FString savePath = FPaths::GameSavedDir().Append(TEXT("/data.a"));
-//		TArray<uint8> ToBinary;
-//		if (FFileHelper::LoadFileToArray(ToBinary, *savePath))
-//		{
-//			FMemoryReader Reader(ToBinary);
-//			Reader << __Rotators;
-//		}
-//	}
-//
-//	for (int Index = 0; Index < 16 && OutData.IsValidIndex(Index); Index++)
-//	{
-//		OutData[Index] = __Rotators[Index];
-//	}
-//#endif
-
 }
 
 void FServicesData::GetFaceData(TMap<FString, float>& OutData)

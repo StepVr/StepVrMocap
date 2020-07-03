@@ -4,6 +4,11 @@
 
 DECLARE_DELEGATE(FReceiveData)
 
+struct transform;
+struct V4;
+void ConvertToUE(transform* InData, TArray<FTransform>& OutData);
+void ConvertToUE(V4* InData, TArray<FRotator>& OutData);
+
 class StepVrDataServer
 {
 public:

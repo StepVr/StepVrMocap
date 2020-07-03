@@ -21,13 +21,13 @@ UStepMocapComponent::UStepMocapComponent()
 
 void UStepMocapComponent::UpdateSkt()
 {
-	FString OwnerName = GetOwner()->GetName();
+	uint32 UID = GetOwner()->GetUniqueID();
 
 	
-	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(OwnerName);
+	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(UID);
 	if (Stream.IsValid())
 	{
-		FMocapServerInfo* ServerInfo = Stream->HasActorName(OwnerName);
+		FMocapServerInfo* ServerInfo = Stream->HasActorWithUID(UID);
 		if (ServerInfo)
 		{
 			Stream->ReplcaeSkt(ServerInfo->SktName);
@@ -37,13 +37,13 @@ void UStepMocapComponent::UpdateSkt()
 
 FString UStepMocapComponent::GetSktName()
 {
-	FString OwnerName = GetOwner()->GetName();
+	uint32 UID = GetOwner()->GetUniqueID();
 
 	FString SktName = "";
-	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(OwnerName);
+	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(UID);
 	if (Stream.IsValid())
 	{
-		FMocapServerInfo* ServerInfo = Stream->HasActorName(OwnerName);
+		FMocapServerInfo* ServerInfo = Stream->HasActorWithUID(UID);
 		if (ServerInfo)
 		{
 			SktName = ServerInfo->SktName;
@@ -68,9 +68,11 @@ void UStepMocapComponent::StartRecord(const FString& RecordName)
 	IsRecord = true;
 
 	strRecordName = RecordName;
-	FString OwnerName = GetOwner()->GetName();
 
-	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(OwnerName);
+	//UID
+	uint32 UID = GetOwner()->GetUniqueID();
+
+	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(UID);
 	if (Stream.IsValid())
 	{
 		Stream->RecordStart(RecordName);
@@ -85,9 +87,9 @@ void UStepMocapComponent::StopRecord()
 	}
 	IsRecord = false;
 
-	FString OwnerName = GetOwner()->GetName();
+	uint32 UID = GetOwner()->GetUniqueID();
 
-	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(OwnerName);
+	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(UID);
 	if (Stream.IsValid())
 	{
 		Stream->RecordStop();
@@ -130,9 +132,9 @@ void UStepMocapComponent::GetAllRecords(TArray<FString>& RecordName)
 
 void UStepMocapComponent::TPose()
 {
-	FString OwnerName = GetOwner()->GetName();
+	uint32 UID = GetOwner()->GetUniqueID();
 
-	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(OwnerName);
+	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(UID);
 	if (Stream.IsValid())
 	{
 		Stream->TPose();
@@ -141,9 +143,9 @@ void UStepMocapComponent::TPose()
 
 void UStepMocapComponent::MocapDataState(bool& Server, bool& Body, bool& Hand)
 {
-	FString OwnerName = GetOwner()->GetName();
+	uint32 UID = GetOwner()->GetUniqueID();
 
-	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(OwnerName);
+	TSharedPtr<FStepMocapStream> Stream = FStepMocapStream::GetActorMocapStream(UID);
 	if (Stream.IsValid())
 	{
 		Server = Stream->IsConnected();

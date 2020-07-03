@@ -93,7 +93,7 @@ typedef TMap<uint32, TSharedPtr<FStepMocapStream>> AllStepMocapStreams;
 class STEPVRDATASTREAMCORE_API FStepMocapStream                   
 {
 public:
-	static TSharedPtr<FStepMocapStream> GetActorMocapStream(FString& ActorName);
+	static TSharedPtr<FStepMocapStream> GetActorMocapStream(uint32 UID);
 	static TSharedPtr<FStepMocapStream> GetStepMocapStream(FMocapServerInfo& ServerInfo , bool AlwaysCreat = true);
 	static void DestroyStepMocapStream(TSharedPtr<FStepMocapStream> StepMocapStream);
 
@@ -126,9 +126,9 @@ public:
 	bool IsFaceConnect();
 
 	//添加该链接对应信息
-	void AddActorOwner(FString& ActorName, FMocapServerInfo& ServerInfo);
+	void AddActorOwner(FMocapServerInfo& ServerInfo);
 	void RemoveActorOwner(FString& ActorName);
-	FMocapServerInfo* HasActorName(FString& ActorName);
+	FMocapServerInfo* HasActorWithUID(uint32 UID);
 protected:
 	void EngineBegineFrame();
 	void ConnectToServices();
@@ -146,7 +146,7 @@ private:
 	int32 ReferenceCount = 0;
 
 	//所有拥有此链接得Actor
-	TMap<FString, FMocapServerInfo> CacheActors;
+	TMap<uint32, FMocapServerInfo> CacheActors;
 
 	//动捕存储数据
 	TArray<FTransform> CacheBodyFrameData;
@@ -212,6 +212,7 @@ public:
 	 */
 	void BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, BoneMappings& BodyBoneReferences, BoneMappings& HandBoneReferences);
 	void UpdateSkeletonFrameData();
+	void BonesTransform(TArray<FTransform>& Bones, TArray<FRotator>&Hands);
 	const TArray<int32>& GetUE4NeedUpdateBones();
 	const FStepDataToSkeletonBinding::FMapBone& GetUE4BoneIndex(int32 SegmentIndex) const;
 	const TArray<FStepDataToSkeletonBinding::FMapBone>& GetUE4Bones();
@@ -231,7 +232,7 @@ public:
 
 	void ResetMocapStream();
 
-	void LoadReplayData();
+	void LoadReplayData(FString ReplayFile = "");
 
 private:
 	//回放数据
