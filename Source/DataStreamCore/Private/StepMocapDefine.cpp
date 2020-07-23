@@ -34,10 +34,14 @@ FString StepMocapSpace::GetLocalIP()
 	if (GLocalIP.IsEmpty())
 	{
 		bool CanBind = false;
-		TSharedRef<FInternetAddr> LocalIp = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, CanBind);
-		if (LocalIp->IsValid())
+		auto OnlinePtr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+		if (OnlinePtr)
 		{
-			GLocalIP = LocalIp->ToString(false);
+			TSharedRef<FInternetAddr> LocalIp = OnlinePtr->GetLocalHostAddr(*GLog, CanBind);
+			if (LocalIp->IsValid())
+			{
+				GLocalIP = LocalIp->ToString(false);
+			}
 		}
 	}
 	return GLocalIP;
