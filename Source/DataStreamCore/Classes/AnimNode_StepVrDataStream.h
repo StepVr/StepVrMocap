@@ -2,6 +2,8 @@
 
 #include "StepVrStream.h"
 #include "StepMocapDefine.h"
+
+#include "LiveLinkRetargetAsset.h"
 #include "AnimNode_StepVrDataStream.generated.h"
 
 
@@ -85,6 +87,16 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	UPROPERTY(EditAnywhere, Category=Server)
 	int32 PortNumber = 9516;
 
+
+	/**
+	 * 面部捕捉
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, NoClear, Category = Retarget, meta = (NeverAsPin))
+	TSubclassOf<ULiveLinkRetargetAsset> RetargetAsset;
+
+	UPROPERTY(transient)
+	ULiveLinkRetargetAsset* CurrentRetargetAsset = nullptr;
+
 public:	
 
 	FAnimNode_StepDataStream();
@@ -94,8 +106,10 @@ public:
 	void BindSkeleton(FAnimInstanceProxy* AnimInstanceProxy);
 	
 	// FAnimNode_Base interface
-	void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	virtual bool HasPreUpdate() const { return true; }
+	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
+	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	virtual void EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output) override;
 	//void CacheBones_AnyThread(const FAnimationCacheBonesContext & Context) override;
 	// End of FAnimNode_Base interface
@@ -123,5 +137,8 @@ private:
 	//是否连接
 	bool bConnected = false;
 	FString ConnectServerIP = "";
+
+	//面部更新间隔
+	float CachedDeltaTime = 0.f;
 };
 

@@ -1,11 +1,14 @@
 ﻿#include "StepVrDataStreamModule.h"
-#include "Engine.h"
+#include "StepVrFaceSource.h"
 #include "StepMocapDefine.h"
 #include "StepVrSkt.h"
 
 
+#include "Engine.h"
+
 
 static void* CPPUdpClientDllHandle = nullptr;
+
 
 void FreeHandle()
 {
@@ -49,12 +52,21 @@ void FStepDataStreamModule::StartupModule()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Load StepMocapDll Faild"));
 	}
+
+
+	//ARKit
+	FStepListenerToAppleARKit::CreateRemoteListener();
 }
 
 
 void FStepDataStreamModule::ShutdownModule()
 {
 	FreeHandle();
+}
+
+FStepListenerToAppleARKit* FStepDataStreamModule::GetStepListenerToAppleARKit()
+{
+	return FStepListenerToAppleARKit::CreateRemoteListener();
 }
 
 IMPLEMENT_MODULE(FStepDataStreamModule, StepVrDataStreamCore);

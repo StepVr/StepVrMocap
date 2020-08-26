@@ -98,7 +98,7 @@ bool FStepVrSkt::ReplcaeSkt(const FString& NewSkt)
 
 	if (!FPaths::FileExists(SktPath))
 	{
-		UE_LOG(LogStepMocap, Log, TEXT("ReplcaeSkt Error,%s cant find"), *SktPath);
+		UE_LOG(LogStepVrStreamer, Log, TEXT("ReplcaeSkt Error,%s cant find"), *SktPath);
 		return false;
 	}
 

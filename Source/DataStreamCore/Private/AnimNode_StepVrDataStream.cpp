@@ -1,4 +1,6 @@
 ﻿#include "AnimNode_StepVrDataStream.h"
+#include "StepVrDataStreamModule.h"
+#include "StepVrFaceSource.h"
 #include "StepMocapComponent.h"
 #include "StepVrSkt.h"
 
@@ -100,11 +102,11 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 	}
 	mSkeletonBinding.BindToSkeleton(AnimInstanceProxy, BindMocapBones, BindMocapHandBones);
 	
-	if (EnableFace)
-	{
-		//绑定顶点变形 
-		mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, BindMorphTarget);
-	}
+	//if (EnableFace)
+	//{
+	//	//绑定顶点变形 
+	//	mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, BindMorphTarget);
+	//}
 }
 
 void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeContext& Context)
@@ -124,6 +126,8 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	//绑定骨骼
 	BindSkeleton(Context.AnimInstanceProxy);
 
+
+
 #if WITH_EDITOR
 	if (GWorld->WorldType == EWorldType::Editor)
 	{
@@ -135,6 +139,21 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 
 }
 
+
+void FAnimNode_StepDataStream::PreUpdate(const UAnimInstance* InAnimInstance)
+{
+	Super::PreUpdate(InAnimInstance);
+
+	//面部Retarget
+	if (CurrentRetargetAsset == nullptr)
+	{
+		if (UClass* RetargetAssetPtr = RetargetAsset.Get())
+		{
+			CurrentRetargetAsset = NewObject<ULiveLinkRetargetAsset>(const_cast<UAnimInstance*>(InAnimInstance), RetargetAssetPtr);
+			CurrentRetargetAsset->Initialize();
+		}
+	}
+}
 
 void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
@@ -160,6 +179,8 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 
 	//面部数据
 	mSkeletonBinding.UpdateFaceFrameData();
+
+	CachedDeltaTime += Context.GetDeltaTime();
 }
 
 //FGraphEventRef oExecOnGameThread(TFunction<void()> funcLambda)
@@ -259,15 +280,33 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 	}
 
 	//更新面部捕捉
-	USkeletalMeshComponent* SkeletonComponet = Output.AnimInstanceProxy->GetSkelMeshComponent();
-	if (SkeletonComponet)
+	if (EnableFace)
 	{
-		auto FaceBindData = mSkeletonBinding.GetUE4FaceData();
-		for (auto& TempItr : FaceBindData)
+		if (FStepListenerToAppleARKit* StepListener = FStepDataStreamModule::GetStepListenerToAppleARKit())
 		{
-			SkeletonComponet->SetMorphTarget(TempItr.UE4MarphName, TempItr.MorphValue);
+			FLiveLinkBaseStaticData* BaseStaticData = StepListener->GetStaticData();
+			FLiveLinkBaseFrameData* BaseFrameData = StepListener->GetFrameData();
+			check(BaseStaticData);
+			check(BaseFrameData);
+
+			if (CurrentRetargetAsset)
+			{
+				auto CompactPose = Output.Pose.GetPose();
+				CurrentRetargetAsset->BuildPoseAndCurveFromBaseData(CachedDeltaTime, BaseStaticData, BaseFrameData, CompactPose, Output.Curve);
+				// Reset so that if we evaluate again we don't "create" time inside of the retargeter
+				CachedDeltaTime = 0.f;
+			}
 		}
 	}
+	//USkeletalMeshComponent* SkeletonComponet = Output.AnimInstanceProxy->GetSkelMeshComponent();
+	//if (SkeletonComponet)
+	//{
+	//	auto FaceBindData = mSkeletonBinding.GetUE4FaceData();
+	//	for (auto& TempItr : FaceBindData)
+	//	{
+	//		SkeletonComponet->SetMorphTarget(TempItr.UE4MarphName, TempItr.MorphValue);
+	//	}
+	//}
 }
 
 //void FAnimNode_StepDataStream::CacheBones_AnyThread(const FAnimationCacheBonesContext & Context)
@@ -279,10 +318,6 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 void FAnimNode_StepDataStream::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
 	Super::OnInitializeAnimInstance(InProxy, InAnimInstance);
-
-	//CacheOwnerActor = InAnimInstance->GetOwningActor();
-
-	CacheAnimInstanceProxy = InProxy;
 }
 
 FMocapServerInfo FAnimNode_StepDataStream::BuildServerInfo()

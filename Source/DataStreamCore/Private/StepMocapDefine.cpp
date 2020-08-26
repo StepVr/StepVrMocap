@@ -8,7 +8,7 @@
 
 
 
-DEFINE_LOG_CATEGORY(LogStepMocap)
+DEFINE_LOG_CATEGORY(LogStepVrStreamer)
 
 TArray<FString> StepFaceMorphTargets = {};
 
@@ -16,7 +16,7 @@ void StepMocapSpace::ShowMessage(const FString& Log)
 {
 	if (IsInGameThread())
 	{
-		UE_LOG(LogStepMocap, Log, TEXT("%s"), *Log);
+		UE_LOG(LogStepVrStreamer, Log, TEXT("%s"), *Log);
 	}
 	else
 	{

@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogStepMocap, Log, All)
+DECLARE_LOG_CATEGORY_EXTERN(LogStepVrStreamer, Log, All)
 
 //Stat stepmocap
 DECLARE_STATS_GROUP(TEXT("stepmocap"), STATGROUP_STEPMOCAP, STATCAT_Advanced);
