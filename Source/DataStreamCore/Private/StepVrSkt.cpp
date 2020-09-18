@@ -83,7 +83,15 @@ TArray<FString>& FStepVrSkt::GetSktRetarget(FString& FileName)
 bool FStepVrSkt::ReplcaeSkt(const FString& NewSkt)
 {
 	FString TargetPath = TEXT("C:\\StepVR_MMAP\\param\\NewModel_humanoid.skt");
-	FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*TargetPath);
+	if (FPaths::FileExists(TargetPath))
+	{
+		if (!FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*TargetPath))
+		{
+			UE_LOG(LogStepVrStreamer, Log, TEXT("ReplcaeSkt Error,cant Delete SKT : %s "), *TargetPath);
+			return false;
+		}
+	}
+
 
 	//还原skt
 	if (NewSkt.IsEmpty())
@@ -98,7 +106,7 @@ bool FStepVrSkt::ReplcaeSkt(const FString& NewSkt)
 
 	if (!FPaths::FileExists(SktPath))
 	{
-		UE_LOG(LogStepVrStreamer, Log, TEXT("ReplcaeSkt Error,%s cant find"), *SktPath);
+		UE_LOG(LogStepVrStreamer, Log, TEXT("ReplcaeSkt Error,cant find : %s"), *SktPath);
 		return false;
 	}
 

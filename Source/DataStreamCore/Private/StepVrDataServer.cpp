@@ -1,8 +1,9 @@
 ﻿#include "StepVrDataServer.h"
-#include "StepIkClientCpp.h"
 #include "StepMocapDefine.h"
-#include "Misc/CoreDelegates.h"
 
+#include "StepIkClientCpp.h"
+
+#include "Misc/CoreDelegates.h"
 
 static float		GStepFaceData[STEPFACEMORGHNUMS];
 static V4			GStepHandData[STEPHANDBONESNUMS];

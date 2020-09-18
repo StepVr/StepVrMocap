@@ -55,21 +55,26 @@ bool FStepDataToSkeletonBinding::ConnectToServer(const FMocapServerInfo& InServe
 
 	switch (CacheServerInfo.StepControllState)
 	{
-	case Local_Replicate_N:
-	case Local_Replicate_Y:
+	case Local_UnReplicate:
+	case Local_Replicate:
 	{
 		//创建本地Stream
 		StepMpcapStream = FStepMocapStream::GetStepMocapStream(CacheServerInfo);
 		Success = StepMpcapStream.IsValid();
 	}
 	break;
-	case Remote_Replicate_Y:
+	case Remote_Replicate:
 	{
 		Success = true;
 	}break;
 	}
 
 	return Success;
+}
+
+TSharedPtr<FStepMocapStream> FStepDataToSkeletonBinding::GetMocapStream()
+{
+	return StepMpcapStream;
 }
 
 void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstanceProxy, BoneMappings& BodyBoneReferences, BoneMappings& HandBoneReferences)
@@ -150,8 +155,8 @@ void FStepDataToSkeletonBinding::BindToSkeleton(FAnimInstanceProxy* AnimInstance
 		{
 			if (UE4NeedUpdateBones.Find(CurIdnex) == INDEX_NONE)
 			{
-				FName BoneName1 = RefSkeleton.GetBoneName(CurIdnex);
-				UE_LOG(LogTemp,Log,TEXT("   ParentName %d - %s"),CurIdnex,*BoneName1.ToString());
+				//FName BoneName1 = RefSkeleton.GetBoneName(CurIdnex);
+				//UE_LOG(LogTemp, Log, TEXT("   ParentName %d - %s"), CurIdnex, *BoneName1.ToString());
 				UE4NeedUpdateBones.Add(CurIdnex);
 			}
 			else
@@ -260,14 +265,13 @@ void FStepDataToSkeletonBinding::ResetMocapStream()
 {
 	if (StepMpcapStream.IsValid())
 	{
-		FStepMocapStream::DestroyStepMocapStream(StepMpcapStream.ToSharedRef());
 		StepMpcapStream.Reset();
 	}
 }
 
 void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 {
-	if (CacheServerInfo.StepControllState == Remote_Replicate_Y)
+	if (CacheServerInfo.StepControllState == Remote_Replicate)
 	{
 		//TArray<FTransform> SkeletonData;
 		//{
@@ -303,9 +307,11 @@ void FStepDataToSkeletonBinding::UpdateSkeletonFrameData()
 			return;
 		}
 
+		//动捕数据
 		auto BodyData = StepMpcapStream->GetBonesTransform_Body();
 		bool bBodyData = BodyData.Num() == STEPBONESNUMS;
 
+		//手套数据
 		auto HandData = StepMpcapStream->GetBonesTransform_Hand();
 		bool bHandData = CacheServerInfo.EnableHand && HandData.Num() == STEPHANDBONESNUMS;
 
@@ -383,6 +389,12 @@ TSharedPtr<FStepMocapStream> FStepMocapStream::GetActorMocapStream(FString& Acto
 	return nullptr;
 }
 
+TSharedPtr<FStepMocapStream> FStepMocapStream::GetMocapStream(uint32& ActorGUID)
+{
+	TSharedPtr<FStepMocapStream> NewStream;
+	return NewStream;
+}
+
 TSharedPtr<FStepMocapStream> FStepMocapStream::GetStepMocapStream(FMocapServerInfo& ServerInfo, bool AlwaysCreat)
 {
 	uint32 ServerID = GetServerID(ServerInfo);
@@ -413,23 +425,6 @@ TSharedPtr<FStepMocapStream> FStepMocapStream::GetStepMocapStream(FMocapServerIn
 	}
 
 	return NewStream;
-}
-
-void FStepMocapStream::DestroyStepMocapStream(TSharedPtr<FStepMocapStream> StepMocapStream)
-{
-	if (!StepMocapStream.IsValid())
-	{
-		return;
-	}
-
-	uint32 ServerID = GetServerID(StepMocapStream->GetServerInfo());
-	auto Temp = AllStreams.Find(ServerID);
-
-	bool NeedRelease = (Temp != nullptr) && (*Temp)->ReleaseReference();
-	if (NeedRelease)
-	{
-		AllStreams.Remove(ServerID);
-	}
 }
 
 bool FStepMocapStream::ReleaseReference() 
@@ -472,22 +467,27 @@ const FMocapServerInfo& FStepMocapStream::GetServerInfo()
 	return UsedServerInfo;
 }
 
-void FStepMocapStream::ReplcaeSkt(const FString& NewSktName)
+bool FStepMocapStream::ReplcaeSkt(const FString& NewSktName)
 {
+	bool Success = false;
 	do 
 	{
-		if (!STEPVRSKT->ReplcaeSkt(NewSktName))
-		{
-			break;
-		}
-
 		if (!ServerConnect.IsValid())
 		{
 			break;
 		}
 
+		if (!STEPVRSKT->ReplcaeSkt(NewSktName))
+		{
+			break;
+		}
+
 		ServerConnect->ReplaceSkt(!NewSktName.IsEmpty());
+		Success = true;
 	} while (0);
+
+
+	return Success;
 }
 
 void FStepMocapStream::RecordStart(const FString& Name)

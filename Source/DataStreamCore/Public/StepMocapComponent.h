@@ -9,6 +9,13 @@
 /*DECLARE_EVENT_OneParam*/
 
 
+enum EOrderType
+{
+	Type_Tpose,
+	Type_UpdateSkt,
+	Type_NewIP,
+	Type_NewFaceID,
+};
 
 
 //控制数据流
@@ -20,9 +27,17 @@ class STEPVRDATASTREAMCORE_API UStepMocapComponent : public UActorComponent
 public:
 	~UStepMocapComponent();
 
+	UFUNCTION(BlueprintCallable)
+	void MocapUpdateSkt();
 
 	UFUNCTION(BlueprintCallable)
-	void UpdateSkt();
+	void MocapTPose();
+
+	UFUNCTION(BlueprintCallable)
+	void MocapSetNewIP(const FString& InNewIP);
+
+	UFUNCTION(BlueprintCallable)
+	void MocapSetNewFaceID(const FString& InNewFaceID);
 
 	UFUNCTION(BlueprintCallable)
 	void StartRecord(const FString& RecordName);
@@ -32,17 +47,26 @@ public:
 	void PlayRecord(const FString& RecordName);
 	UFUNCTION(BlueprintCallable)
 	void GetAllRecords(TArray<FString>& RecordName);
-	UFUNCTION(BlueprintCallable)
-	void TPose();
+
 
 	bool IsMocapReplicate();
 
+
+	void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
 protected:
+	//网络同步
 	UPROPERTY(BlueprintReadWrite)
 	bool bMocapReplicate = false;
 
-	bool IsRecord = false;
+	FString NewServerIP = "";
+	FString NewFaceID = "";
 
+	//录制数据
+	bool bRecord = false;
 	FString strRecordName;
+
+	//缓存指令
+	TQueue<EOrderType> Orders;
 };
 

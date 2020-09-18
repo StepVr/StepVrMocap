@@ -18,6 +18,29 @@
 #include "Launch/Resources/Version.h"
 
 
+TMap<uint32, FAnimNode_StepDataStream*> FAnimNode_StepDataStream::RegistStepDataStreams;
+FAnimNode_StepDataStream* FAnimNode_StepDataStream::GetStepDataStream(uint32 ActorGUID)
+{
+	auto StepDataStream = RegistStepDataStreams.Find(ActorGUID);
+	if (StepDataStream)
+	{
+		return *StepDataStream;
+	}
+	return nullptr;
+}
+
+void FAnimNode_StepDataStream::RegistStepDataStream(uint32 ActorGUID, FAnimNode_StepDataStream* Target)
+{
+	RegistStepDataStreams.FindOrAdd(ActorGUID) = Target;
+}
+
+void FAnimNode_StepDataStream::UnRegistStepDataStream(uint32 ActorGUID)
+{
+	if (ActorGUID != 0)
+	{
+		RegistStepDataStreams.Remove(ActorGUID);
+	}
+} 
 
 FAnimNode_StepDataStream::FAnimNode_StepDataStream()
 {
@@ -50,13 +73,55 @@ FAnimNode_StepDataStream::FAnimNode_StepDataStream()
 
 FAnimNode_StepDataStream::~FAnimNode_StepDataStream()
 {
-
+	FAnimNode_StepDataStream::UnRegistStepDataStream(CacheGUID);
 }
 
 
+void FAnimNode_StepDataStream::MocapUpdateSkt()
+{
+	auto TempStream = mSkeletonBinding.GetMocapStream();
+
+	if (TempStream.IsValid() && (!SktName.IsEmpty()))
+	{
+		TempStream->ReplcaeSkt(SktName);
+	}
+}
+
+void FAnimNode_StepDataStream::MocapTPose()
+{
+	auto TempStream = mSkeletonBinding.GetMocapStream();
+
+	if (TempStream.IsValid())
+	{
+		TempStream->TPose();
+	}
+}
+
+void FAnimNode_StepDataStream::MocapSetNewIP(const FString& InData)
+{
+	ServerName = FName(*InData);
+	Connected();
+}
+
+void FAnimNode_StepDataStream::MocapSetNewFaceID(const FString& InData)
+{
+	FaceID = FName(*InData);
+}
+
 void FAnimNode_StepDataStream::Connected()
 {
-	bConnected = mSkeletonBinding.ConnectToServer(BuildServerInfo());
+	FMocapServerInfo MocapServerInfo;
+
+	MocapServerInfo.ServerIP = ServerName.ToString();
+	MocapServerInfo.ServerPort = ServerPort;
+
+	MocapServerInfo.EnableHand = EnableHand;
+	MocapServerInfo.EnableFace = EnableFace;
+
+	MocapServerInfo.StepControllState = StepControllState;
+	MocapServerInfo.SktName = SktName;
+
+	bConnected = mSkeletonBinding.ConnectToServer(MocapServerInfo);
 }
 
 void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProxy)
@@ -119,24 +184,29 @@ void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeCo
 	// Forward to the incoming pose link.
 	check(Context.AnimInstanceProxy != nullptr);
 
+	//动画蓝图代理
 	CacheAnimInstanceProxy = Context.AnimInstanceProxy;
-	CacheOwnerActor = CacheAnimInstanceProxy->GetSkelMeshComponent()->GetOwner();
-
 
 	//绑定骨骼
 	BindSkeleton(Context.AnimInstanceProxy);
 
+	StepControllState = FStepControllState::Local_UnReplicate;
+	Connected();
 
 
-#if WITH_EDITOR
-	if (GWorld->WorldType == EWorldType::Editor)
+	//归属Actor
+	if (auto SkeletonMesh = CacheAnimInstanceProxy->GetSkelMeshComponent())
 	{
-		IsInit = true;
-		StepControllState = FStepControllState::Local_Replicate_N;
-		Connected();
+		CacheGUID = SkeletonMesh->GetOwner()->GetUniqueID();
+		if (CacheGUID > 0)
+		{
+			FAnimNode_StepDataStream::RegistStepDataStream(CacheGUID, this);
+		}
+		if (AutoChangeSkt)
+		{
+			MocapUpdateSkt();
+		}
 	}
-#endif
-
 }
 
 
@@ -165,15 +235,6 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 	EvaluateGraphExposedInputs.Execute(Context);
 #endif
 
-	if (!IsInit)
-	{
-		CheckInit();
-		return;
-	}
-	if (CheckIPChanged())
-	{
-		Connected();
-	}
 	//骨骼数据
 	mSkeletonBinding.UpdateSkeletonFrameData();
 
@@ -181,6 +242,7 @@ void FAnimNode_StepDataStream::Update_AnyThread(const FAnimationUpdateContext& C
 	mSkeletonBinding.UpdateFaceFrameData();
 
 	CachedDeltaTime += Context.GetDeltaTime();
+	CachedSkeletonScaleDeltaTime += Context.GetDeltaTime();
 }
 
 //FGraphEventRef oExecOnGameThread(TFunction<void()> funcLambda)
@@ -195,7 +257,7 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 
 	Output.ResetToRefPose();
 
-	if (!IsInit)
+	if (bConnected == false)
 	{
 		return;
 	}
@@ -239,7 +301,7 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 			case FStepDataToSkeletonBinding::EMapBoneType::Bone_Body:
 			{
 				MapBoneData.BoneData.SetToRelativeTransform(FTransform::Identity);
-				if (ApplyScale && CurScale.X > 0.1f)
+				if (CurScale.X > 0.1)
 				{
 					MapBoneData.BoneData.ScaleTranslation(1.f / CurScale.X);
 				}
@@ -254,42 +316,37 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 			break;
 			}
 
-			//if (ApplyScale && CurScale.X > 0.1f)
-			//{
-			//	MapBoneData.BoneData.ScaleTranslation(1.f / CurScale.X);
-			//}
 			Output.Pose.SetComponentSpaceTransform(BoneIndex, MapBoneData.BoneData);
 			StepIndex++;
 		}
 	}
 
 	//Scale
-	if (GWorld->WorldType != EWorldType::Editor)
+	if (GWorld && GWorld->WorldType != EWorldType::Editor)
 	{
-		if (ApplyScale && (!CacheSkeletonScale.Equals(CurScale)) && (CurScale.X > 0.1f))
+		if (ApplyScale && CachedSkeletonScaleDeltaTime > 1)
 		{
-			CacheSkeletonScale = CurScale;
-			AsyncTask(ENamedThreads::GameThread, [&]()
-			{
-				if (CacheAnimInstanceProxy && CacheAnimInstanceProxy->GetSkelMeshComponent())
+			CachedSkeletonScaleDeltaTime = 0.f;
+			AsyncTask(ENamedThreads::GameThread, [&, CurScale]()
 				{
-					CacheAnimInstanceProxy->GetSkelMeshComponent()->SetWorldScale3D(CacheSkeletonScale);
-				}
-			});
+					if (CacheAnimInstanceProxy && CacheAnimInstanceProxy->GetSkelMeshComponent())
+					{
+						CacheAnimInstanceProxy->GetSkelMeshComponent()->SetWorldScale3D(CurScale);
+					}
+				});
 		}
 	}
+
 
 	//更新面部捕捉
 	if (EnableFace)
 	{
 		if (FStepListenerToAppleARKit* StepListener = FStepDataStreamModule::GetStepListenerToAppleARKit())
 		{
-			FLiveLinkBaseStaticData* BaseStaticData = StepListener->GetStaticData();
-			FLiveLinkBaseFrameData* BaseFrameData = StepListener->GetFrameData();
-			check(BaseStaticData);
-			check(BaseFrameData);
+			FLiveLinkBaseStaticData* BaseStaticData = StepListener->GetStaticData(FaceID);
+			FLiveLinkBaseFrameData* BaseFrameData = StepListener->GetFrameData(FaceID);
 
-			if (CurrentRetargetAsset)
+			if (CurrentRetargetAsset && BaseStaticData && BaseFrameData)
 			{
 				auto CompactPose = Output.Pose.GetPose();
 				CurrentRetargetAsset->BuildPoseAndCurveFromBaseData(CachedDeltaTime, BaseStaticData, BaseFrameData, CompactPose, Output.Curve);
@@ -298,15 +355,11 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 			}
 		}
 	}
-	//USkeletalMeshComponent* SkeletonComponet = Output.AnimInstanceProxy->GetSkelMeshComponent();
-	//if (SkeletonComponet)
-	//{
-	//	auto FaceBindData = mSkeletonBinding.GetUE4FaceData();
-	//	for (auto& TempItr : FaceBindData)
-	//	{
-	//		SkeletonComponet->SetMorphTarget(TempItr.UE4MarphName, TempItr.MorphValue);
-	//	}
-	//}
+}
+
+void FAnimNode_StepDataStream::GatherDebugData(FNodeDebugData& DebugData)
+{
+	Super::GatherDebugData(DebugData);
 }
 
 //void FAnimNode_StepDataStream::CacheBones_AnyThread(const FAnimationCacheBonesContext & Context)
@@ -318,101 +371,4 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 void FAnimNode_StepDataStream::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
 	Super::OnInitializeAnimInstance(InProxy, InAnimInstance);
-}
-
-FMocapServerInfo FAnimNode_StepDataStream::BuildServerInfo()
-{
-	FMocapServerInfo MocapServerInfo;
-
-	//MocapServerInfo.ServerIP = Convert2LocalIP(ServerName.ToString());
-	ConnectServerIP = ServerName.ToString();
-	MocapServerInfo.ServerIP = ConnectServerIP;
-	MocapServerInfo.ServerPort = PortNumber;
-	//MocapServerInfo.EnableBody = EnableBody;
-
-	MocapServerInfo.EnableHand = EnableHand;
-	MocapServerInfo.EnableFace = EnableFace;
-
-	MocapServerInfo.StepControllState = StepControllState;
-	MocapServerInfo.AddrValue = AddrValue;
-	MocapServerInfo.SktName = SktName;
-
-	if (CacheOwnerActor)
-	{
-		MocapServerInfo.OwnerActorName = CacheOwnerActor->GetName();
-	}
-	return MocapServerInfo;
-}
-
-void FAnimNode_StepDataStream::CheckInit()
-{
-	IsInit = true;
-	StepControllState = FStepControllState::Local_Replicate_N;
-
-	//IsInit = false;
-
-	//do 
-	//{
-	//	if (!IsValid(CacheOwnerActor))
-	//	{
-	//		//Finish 不是角色
-	//		IsInit = true;
-	//		StepControllState = FStepControllState::Local_Replicate_N;
-	//		break;
-	//	}
-
-	//	if (!CacheOwnerActor->HasActorBegunPlay())
-	//	{
-	//		break;
-	//	}
-
-	//	CacheOwnerActor
-
-	//	TArray<UStepMocapComponent*> Coms;
-	//	CacheOwnerActor->GetComponents(Coms);
-
-	//	//Finish 没有添加组件，无法同步
-	//	if (!Coms.IsValidIndex(0))
-	//	{
-	//		IsInit = true;
-	//		StepControllState = FStepControllState::Local_Replicate_N;
-	//		break;
-	//	}
-
-	//	UStepMocapComponent* TargetCom = Coms[0];
-	//	if (!TargetCom->IsMocapReplicate())
-	//	{
-	//		//Finish 不需要同步
-	//		IsInit = true;
-	//		StepControllState = FStepControllState::Local_Replicate_N;
-	//		break;
-	//	}
-
-	//	if (TargetCom->IsLocalControlled())
-	//	{
-	//		//Finish 本地角色
-	//		IsInit = true;
-	//		StepControllState = FStepControllState::Local_Replicate_Y;
-	//		break;
-	//	}
-
-	//	if (!TargetCom->IsValidPlayerAddr())
-	//	{
-	//		break;
-	//	}
-
-	//	IsInit = true;
-	//	AddrValue = TargetCom->GetPlayerAddr();
-	//	StepControllState = FStepControllState::Remote_Replicate_Y;	
-	//} while (0);
-
-	if (IsInit)
-	{
-		Connected();
-	}
-}
-
-bool FAnimNode_StepDataStream::CheckIPChanged()
-{
-	return bConnected && (!(ConnectServerIP.Equals(ServerName.ToString())));
 }

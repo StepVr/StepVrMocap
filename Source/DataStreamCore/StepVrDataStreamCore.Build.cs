@@ -66,6 +66,7 @@ public class StepVrDataStreamCore : ModuleRules
             "DataStreamCore/Private",
             "DataStreamCore/Public",
             "DataStreamCore/Classes",
+            "../ThirdParty/include"
         } );
 
 
@@ -87,9 +88,6 @@ public class StepVrDataStreamCore : ModuleRules
         //加载DLL
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            PrivateIncludePaths.Add(Path.Combine(LibPath, "include"));
-            PublicIncludePaths.Add(Path.Combine(LibPath, "include"));
-
             string LibrariesPath = GetLibFullPath();
 
             PublicDelayLoadDLLs.Add("StepIKClientDllCPP.dll");

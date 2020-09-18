@@ -18,8 +18,8 @@ class STEPVRDATASTREAMCORE_API FStepMocapStream
 {
 public:
 	static TSharedPtr<FStepMocapStream> GetActorMocapStream(FString& ActorName);
+	static TSharedPtr<FStepMocapStream> GetMocapStream(uint32& ActorGUID);
 	static TSharedPtr<FStepMocapStream> GetStepMocapStream(FMocapServerInfo& ServerInfo , bool AlwaysCreat = true);
-	static void DestroyStepMocapStream(TSharedPtr<FStepMocapStream> StepMocapStream);
 
 public:
 	FStepMocapStream();
@@ -33,7 +33,7 @@ public:
 	 * 替换skt
 	 * NewSktName为skt名称，NewSktName=null 则还原skt
 	 */
-	void ReplcaeSkt(const FString& NewSktName);
+	bool ReplcaeSkt(const FString& NewSktName);
 
 	void RecordStart(const FString& Name);
 	void RecordStop();
@@ -130,6 +130,7 @@ public:
 	~FStepDataToSkeletonBinding();
 
 	bool ConnectToServer(const FMocapServerInfo& InServerInfo);
+	TSharedPtr<FStepMocapStream> GetMocapStream();
 
 	/**
 	 * 全身动捕

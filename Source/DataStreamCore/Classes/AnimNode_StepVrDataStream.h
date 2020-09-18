@@ -15,10 +15,47 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 {
 	GENERATED_USTRUCT_BODY()
 
+
+public:
+	FAnimNode_StepDataStream();
+	~FAnimNode_StepDataStream();
+
+	//全局动画节点
+	static FAnimNode_StepDataStream* GetStepDataStream(uint32 ActorGUID);
+	static void RegistStepDataStream(uint32 ActorGUID, FAnimNode_StepDataStream* Target);
+	static void UnRegistStepDataStream(uint32 ActorGUID);
+	static TMap<uint32, FAnimNode_StepDataStream*> RegistStepDataStreams;
+	void MocapUpdateSkt();
+	void MocapTPose();
+	void MocapSetNewIP(const FString& InData);
+	void MocapSetNewFaceID(const FString& InData);
+
+
+public:
 	//FPoseLink InPose;
 	
 	/**
-	 * 是否关闭全身捕捉
+	 * 服务器IP
+	 * 支持局域网IP
+	 */
+	UPROPERTY(EditAnywhere, Category = StepServer, meta = (PinShownByDefault))
+	FName ServerName = TEXT("127.0.0.1");
+
+	/**
+	 * 服务器端口号
+	 * 暂时默认无需修改
+	 */
+	UPROPERTY(EditAnywhere, Category = StepServer)
+	int32 ServerPort = 9516;
+
+	/**
+	* 是否适配人物实际大小
+	*/
+	UPROPERTY(EditAnywhere, Category = StepServer, meta = (PinShownByDefault))
+	bool ApplyScale = false;
+
+	/**
+	 * 是否暂停全身捕捉
 	 * Override : EnableHand
 	 */
 	UPROPERTY(EditAnywhere, Category = StepServer)
@@ -30,11 +67,6 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	UPROPERTY(EditAnywhere, Category = StepServer)
 	bool EnableHand = false;
 
-	/**
-	* 是否开启面部捕捉
-	*/
-	UPROPERTY(EditAnywhere, Category = StepServer)
-	bool EnableFace = false;
 
 	/**
 	* 骨骼没有Skt文件，填空，使用BindMocapBones|BindMocapHandBones
@@ -42,6 +74,13 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	*/
 	UPROPERTY(EditAnywhere, Category = StepServer)
 	FString SktName = TEXT("");
+
+	/**
+	 * 自动切换skt
+	 * 一台电脑只能存在一个skt
+	 */
+	UPROPERTY(EditAnywhere, Category = StepServer)
+	bool AutoChangeSkt = true;
 
 	/**
 	 * Step修改身体 22 根骨骼点
@@ -68,75 +107,56 @@ struct  STEPVRDATASTREAMCORE_API FAnimNode_StepDataStream : public FAnimNode_Bas
 	TMap<FString, FString>	BindMorphTarget;
 
 	/**
-	 * 服务器IP
-	 * 支持局域网IP
+	 * ARFace面部捕捉
 	 */
-	UPROPERTY(EditAnywhere, Category=Server, meta=(PinShownByDefault))
-	FName ServerName = TEXT("127.0.0.1");
+	//是否开启面部捕捉
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category = ARFace)
+	bool EnableFace = false;
 
-	/**
-	 * 是否根据TPOSE缩放骨骼
-	 */
-	UPROPERTY(EditAnywhere, Category = Server, meta = (PinShownByDefault))
-	bool ApplyScale = false;
-
-	/**
-	 * 服务器端口号
-	 * 暂时默认无需修改
-	 */
-	UPROPERTY(EditAnywhere, Category=Server)
-	int32 PortNumber = 9516;
-
-
-	/**
-	 * 面部捕捉
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, NoClear, Category = Retarget, meta = (NeverAsPin))
+	//重定向曲线
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, NoClear, Category = ARFace, meta = (NeverAsPin))
 	TSubclassOf<ULiveLinkRetargetAsset> RetargetAsset;
+
+	//ARFace ID, PS:Iphone标题
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, NoClear, Category = ARFace, meta = (NeverAsPin))
+	FName FaceID;
 
 	UPROPERTY(transient)
 	ULiveLinkRetargetAsset* CurrentRetargetAsset = nullptr;
 
 public:	
-
-	FAnimNode_StepDataStream();
-	~FAnimNode_StepDataStream();
-
-	void Connected();
-	void BindSkeleton(FAnimInstanceProxy* AnimInstanceProxy);
-	
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual bool HasPreUpdate() const { return true; }
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	virtual void EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output) override;
+	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	//void CacheBones_AnyThread(const FAnimationCacheBonesContext & Context) override;
 	// End of FAnimNode_Base interface
 	
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 
 private:
-	FMocapServerInfo BuildServerInfo();
-	void CheckInit();
-	bool CheckIPChanged();
+	void Connected();
+	void BindSkeleton(FAnimInstanceProxy* AnimInstanceProxy);
+	
 
 	//绑定骨架
 	FStepDataToSkeletonBinding mSkeletonBinding;
 
 	//缓存数据
 	const FAnimInstanceProxy*	CacheAnimInstanceProxy = nullptr;
-	const AActor*				CacheOwnerActor = nullptr;
-	FVector						CacheSkeletonScale;
+	int32						CacheGUID = 0;
+
+	//缩放
+	float						CachedSkeletonScaleDeltaTime = 0.f;
 
 	//联机
-	FStepControllState StepControllState = FStepControllState::Local_Replicate_N;
-	bool IsInit = false;
-	uint32 AddrValue = 0;
+	FStepControllState StepControllState = FStepControllState::Local_UnReplicate;
 
 	//是否连接
 	bool bConnected = false;
-	FString ConnectServerIP = "";
 
 	//面部更新间隔
 	float CachedDeltaTime = 0.f;

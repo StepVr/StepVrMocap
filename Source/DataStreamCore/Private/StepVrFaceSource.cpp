@@ -104,6 +104,9 @@ void FStepListenerToAppleARKit::Tick(float DeltaTime)
 			// All of the data was valid, so publish it
 			if (!FromBuffer.HasOverflow())
 			{
+				FLiveLinkBaseFrameData& BaseFrameData = BaseFrameDatas.FindOrAdd(SubjectName);
+				FLiveLinkBaseStaticData& BaseStaticData = BaseStaticDatas.FindOrAdd(SubjectName);
+
 				//缓存数据FrameData
 				BaseFrameData.WorldTime = FPlatformTime::Seconds();
 				BaseFrameData.MetaData.SceneTime = FrameTime;
@@ -162,14 +165,18 @@ bool FStepListenerToAppleARKit::InitReceiveSocket()
 	return RecvSocket != nullptr;
 }
 
-FLiveLinkBaseStaticData* FStepListenerToAppleARKit::GetStaticData()
+FLiveLinkBaseStaticData* FStepListenerToAppleARKit::GetStaticData(const FName& FaceID)
 {
-	return &BaseStaticData;
+	auto TempPtr = BaseStaticDatas.Find(FaceID);
+
+	return TempPtr;
 }
 
-FLiveLinkBaseFrameData* FStepListenerToAppleARKit::GetFrameData()
+FLiveLinkBaseFrameData* FStepListenerToAppleARKit::GetFrameData(const FName& FaceID)
 {
-	return &BaseFrameData;
+	auto TempPtr = BaseFrameDatas.Find(FaceID);
+
+	return TempPtr;
 }
 
 void FStepListenerToAppleARKit::InitLiveLinkSource()

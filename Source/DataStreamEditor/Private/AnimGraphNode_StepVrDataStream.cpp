@@ -37,7 +37,7 @@ void UAnimGraphNode_StepDataStream::ValidateAnimNodeDuringCompilation(class USke
 {
 	if (Node.SktName.IsEmpty())
 	{
-		MessageLog.Note(TEXT("Skt Empty, Use BindMocapBones|BindMocapHandBones!"));
+		MessageLog.Note(TEXT("未使用SKT，直接骨骼匹配，确保骨骼按照标准制作与命名..."));
 		
 		TArray<FString> NoteMessage;
 		for (auto& BoneName : StepBoneNames)
@@ -54,12 +54,12 @@ void UAnimGraphNode_StepDataStream::ValidateAnimNodeDuringCompilation(class USke
 			}
 		}
 
-		if (NoteMessage.IsValidIndex(0))
+		if (NoteMessage.Num() > 0)
 		{
-			MessageLog.Warning(TEXT("StepMocap Bind Error"));
+			MessageLog.Warning(TEXT("身体骨骼绑定失败..."));
 			for (auto& BoneName : NoteMessage)
 			{
-				FString Message = FString::Printf(TEXT("Can Not Find Bone %s"), *BoneName);
+				FString Message = FString::Printf(TEXT("->未能找到骨骼 : %s"), *BoneName);
 				MessageLog.Note(*Message);
 			}
 		}
@@ -81,10 +81,10 @@ void UAnimGraphNode_StepDataStream::ValidateAnimNodeDuringCompilation(class USke
 
 		if (NoteMessage.IsValidIndex(0))
 		{
-			MessageLog.Warning(TEXT("StepHandCapture Bind Error"));
+			MessageLog.Warning(TEXT("手部骨骼绑定失败..."));
 			for (auto& BoneName : NoteMessage)
 			{
-				FString Message = FString::Printf(TEXT("Can Not Find Bone %s"), *BoneName);
+				FString Message = FString::Printf(TEXT("->未能找到骨骼 : %s"), *BoneName);
 				MessageLog.Note(*Message);
 			}
 		}
@@ -92,7 +92,8 @@ void UAnimGraphNode_StepDataStream::ValidateAnimNodeDuringCompilation(class USke
 	else
 	{
 		TArray<FString> NoteMessage;
-		MessageLog.Note(*FString::Printf(TEXT("Use Skt : StepVrMocap/ThirdParty/skt/%s.txt"), *Node.SktName));
+		MessageLog.Note(*FString::Printf(TEXT("SKT使用，确保SKT存放路径正确..."), *Node.SktName));
+		MessageLog.Note(*FString::Printf(TEXT("SKT路径 : StepVrMocap/ThirdParty/skt/%s.txt"), *Node.SktName));
 
 		auto ArySkt = STEPVRSKT->GetSktRetarget(Node.SktName);
 		if (ArySkt.Num() == (STEPHANDBONESNUMS + STEPBONESNUMS))
@@ -118,7 +119,7 @@ void UAnimGraphNode_StepDataStream::ValidateAnimNodeDuringCompilation(class USke
 				FBoneReference Ref(*ArySkt[Index]);
 				if (!Ref.Initialize(ForSkeleton))
 				{
-					FString Message = FString::Printf(TEXT("Use Skt, Skt->%s Bind Error"), *ArySkt[Index]);
+					FString Message = FString::Printf(TEXT("->Use Skt, Skt->%s Bind Error"), *ArySkt[Index]);
 					NoteMessage.Add(Message);
 				}
 			}

@@ -730,8 +730,8 @@ public:
 
 	bool InitReceiveSocket();
 
-	FLiveLinkBaseStaticData* GetStaticData();
-	FLiveLinkBaseFrameData* GetFrameData();
+	FLiveLinkBaseStaticData* GetStaticData(const FName& FaceID);
+	FLiveLinkBaseFrameData* GetFrameData(const FName& FaceID);
 
 private:
 	void InitLiveLinkSource();
@@ -743,9 +743,11 @@ private:
 	/** The reused blend shape map to avoid allocs/frees */
 	FARBlendShapeMap	BlendShapes;
 
-	FLiveLinkBaseStaticData		BaseStaticData;
-	FLiveLinkBaseFrameData		BaseFrameData;
+	//FLiveLinkBaseStaticData		BaseStaticData;
+	//FLiveLinkBaseFrameData		BaseFrameData;
 
+	TMap<FName, FLiveLinkBaseStaticData> BaseStaticDatas;
+	TMap<FName, FLiveLinkBaseFrameData> BaseFrameDatas;
 	/** The source used to publish events from the remote socket */
 	//TSharedPtr<ILiveLinkSourceARKit> Source;
 };

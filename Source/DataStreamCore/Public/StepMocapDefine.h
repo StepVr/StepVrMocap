@@ -30,12 +30,14 @@ namespace StepMocapSpace
  */
 enum FStepControllState
 {
-	//读配置IP
-	Local_Replicate_N,
-	//读配置IP，发送数据
-	Local_Replicate_Y,
-	//读远端数据
-	Remote_Replicate_Y,
+	//直连
+	Local_UnReplicate,
+
+	//直连，并发送数据
+	Local_Replicate,
+
+	//不连接，仅读取网络数据
+	Remote_Replicate,
 };
 
 
@@ -69,7 +71,7 @@ struct FMocapServerInfo
 		OwnerActorName("Null"),
 		SktName("")
 	{
-		StepControllState = FStepControllState::Local_Replicate_N;
+		StepControllState = FStepControllState::Local_UnReplicate;
 	};
 
 	bool IsEmpty() const
