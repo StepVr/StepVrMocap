@@ -63,6 +63,10 @@ protected:
 	void NeedReference();
 
 private:
+	//录制文件
+	FDelegateHandle CommandHandle;
+	bool			bRecord = false;
+
 	//当前链接属性
 	FMocapServerInfo UsedServerInfo;
 	TSharedPtr<StepVrDataServer> ServerConnect;

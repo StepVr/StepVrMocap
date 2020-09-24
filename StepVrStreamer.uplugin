@@ -37,6 +37,10 @@
     {
       "Name": "LiveLink",
       "Enabled": true
+    },
+    {
+      "Name": "StepVrPlugin",
+      "Enabled": true
     }
   ]
 }

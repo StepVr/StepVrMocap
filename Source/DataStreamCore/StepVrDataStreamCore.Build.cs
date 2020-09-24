@@ -82,7 +82,8 @@ public class StepVrDataStreamCore : ModuleRules
             "Sockets",
             "AugmentedReality",
             "LiveLinkInterface",
-            "LiveLink"
+            "LiveLink",
+            "StepVrPlugin"
         });
 
         //加载DLL

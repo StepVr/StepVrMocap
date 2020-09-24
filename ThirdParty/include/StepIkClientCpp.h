@@ -101,7 +101,7 @@ class STEPIK_DLL_API StepIK_Client
 public:
 	StepIK_Client();
 	~StepIK_Client();
-	int Connect(char * szServerIP, int serverPort);//port: 9516..  返回值：忽略其值
+	int Connect(const char * szServerIP, int serverPort);//port: 9516..  返回值：忽略其值
 	void DisConnect();
 	bool IsConnected();
 
@@ -120,12 +120,15 @@ public:
 								   //获得手指各关节姿态的方法 1. GloEnable(true);GloSetDir(i_dir);  2. 在主循环调用GetGloveData
 	void GetGloveM(V4 * data);//30个4元数（前15个为左手的，后15个是右手的，手指顺序和GetGloveData的相同）
 	void GetGloveData(V4 * data); //32个4元数（前16个为：左手手掌，左手拇指从内向外三个关节，食指三个关节，中指三关节，无名指三关节，小指三关节。后16个为右手的，顺序和左手相同）
+	
+	//以下函数已失效
 	void GloEnable(bool enable);//开启、关闭手套数据
 	void GloSetDir(int i_dir);//设置航向角
 	void GloCaliFive(int iLR);//五指校准（0左1右）
 	void GloCaliStatic(int iLR);//静态校准
 	void GloCaliDynamic(int iLR);//动态校准
 	void GloSetBtnCallBack(FnBtnCallBack pFn);//按键回调函数，见上方函数声明
+	//以上函数已失效
 	
 	void GetMacHand(float *angles);
 
@@ -137,7 +140,8 @@ public:
 	void GetFaceData(float* fFaceData, int & iLen);
 	void GetFaceData2(float* fFaceData);
 
-	void GetMacArmData(MacArmData * data);//七轴机械臂专用,返回两个MacArmData
+	void GetMacArmData(MacArmData * data);//七轴机械臂专用,返回两个MacArmData, id为1是左臂数据，id为2是右臂数据
+	void GetMacOtherData(MacArmData * data);//机器人其它部位的数据,返回两个MacArmData, id为3是身体数据，id为4是腿部数据
 	void SetMacArmDataCurr(MacArmData * data);//上传七轴机械臂的参数
 	void GetMacArmDataCurr(MacArmData * data);//获取上传的参数
 
@@ -148,11 +152,18 @@ public:
 	void GetRecordFiles(std::vector<std::string>& vFiles, int iType);
 	void StartRecord(const char * sName);
 	void StopRecord();
+	void StartReplay(const char * sName);
+	void StopReplay();
+
+	const char * GetMocapVer();
+	const char * GetMocapCompileTime();
+	const char * GetCompileTime();
+	const char * GetIkClientVer();
 };
 
 
 extern "C" {
-	STEPIK_DLL_API int dllInit(char * szServerIP, int serverPort);
+	STEPIK_DLL_API int dllInit(const char * szServerIP, int serverPort);
 	STEPIK_DLL_API void DisConnect();
 	STEPIK_DLL_API int startData();
 	STEPIK_DLL_API int StopData();
@@ -168,6 +179,7 @@ extern "C" {
 	STEPIK_DLL_API void GetLossyScale(V3 * scale);
 	STEPIK_DLL_API void GetGloveM(V4 * data);
 	STEPIK_DLL_API void GetGloveData(V4 * data);
+
 	STEPIK_DLL_API void GloEnable(bool enable);
 	STEPIK_DLL_API void GloSetDir(int i_dir);
 	STEPIK_DLL_API void GloCaliFive(int iLR);
@@ -183,6 +195,7 @@ extern "C" {
 	STEPIK_DLL_API void GetFaceData2(float* fFaceData);
 
 	STEPIK_DLL_API void GetMacArmData(MacArmData * data);
+	STEPIK_DLL_API void GetMacOtherData(MacArmData * data);
 	STEPIK_DLL_API void SetMacArmDataCurr(MacArmData * data);
 	STEPIK_DLL_API void GetMacArmDataCurr(MacArmData * data);
 
@@ -193,4 +206,11 @@ extern "C" {
 	STEPIK_DLL_API void GetRecordFiles(std::vector<std::string>& vFiles, int iType);
 	STEPIK_DLL_API void StartRecord(const char * sName);
 	STEPIK_DLL_API void StopRecord();
+	STEPIK_DLL_API void StartReplay(const char * sName);
+	STEPIK_DLL_API void StopReplay();
+
+	STEPIK_DLL_API const char * GetMocapVer();
+	STEPIK_DLL_API const char * GetMocapCompileTime();
+	STEPIK_DLL_API const char * GetCompileTime();
+	STEPIK_DLL_API const char * GetIkClientVer();
 }

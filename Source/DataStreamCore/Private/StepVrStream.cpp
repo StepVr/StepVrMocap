@@ -2,6 +2,11 @@
 #include "StepVrDataServer.h"
 #include "StepVrSkt.h"
 
+//StepVrPlugin
+#include "StepVrGlobal.h"
+#include "StepVrDataRecord.h"
+
+//Engine
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/MorphTarget.h"
@@ -10,20 +15,79 @@
 
 
 
-namespace StepMocapServers
+
+
+
+/**
+ * 录制发送数据
+ */
+class FStepMocapData : public FStepSaveData
 {
-	static bool IsConnected = false;
-//	static TMap<uint32, TSharedPtr<FStepMocapStream>> AllStreams;
+public:
+	//动补数据
+	void SetData(TArray<FTransform>& InData)
+	{
+		DEAL_INTERVAL
+		
+		if (InData.Num()>2)
+		{
+			Root = InData[0].GetLocation();
+			Hips = InData[1].GetLocation();
+		}
+		else
+		{
+			Root = FVector::OneVector;
+			Hips = FVector::OneVector;
+		}
+	}
 
-//	TSharedRef<FStepMocapStream> GetStream(const FMocapServerInfo& InServerInfo);
-//	void ReturnStream(TSharedRef<FStepMocapStream> StepMocapStream);
+	virtual void GetTitleLine(FString& OutLine) override
+	{
+		OutLine = FString::Format(TEXT("{0},{1},{2},{3},{4},{5},{6}\n"),
+			{
+				TEXT("FramesInterval(ms)"),
+				TEXT("Root.X"),
+				TEXT("Root.Y"),
+				TEXT("Root.Z"),
+				TEXT("Hips.X"),
+				TEXT("Hips.Y"),
+				TEXT("Hips.Z")
+			});
+	}
 
-//	uint32 GetServerID(const FMocapServerInfo& InServerInfo);
+	virtual void GetLine(FString& OutLine) override
+	{
+		OutLine = FString::Format(TEXT("{0},{1},{2},{3},{4},{5},{6}\n"),
+			{
+				DataInterval,
+				Root.X,
+				Root.Y,
+				Root.Z,
+				Hips.X,
+				Hips.Y,
+				Hips.Z
+			});
+	}
+
+private:
+	//Root
+	FVector Root;
+
+	//Hips
+	FVector Hips;
+};
+static FStepVrDataRecord<FStepMocapData> StepVrMocapDataRecord;
+void AddRecordData(TArray<FTransform>& InData)
+{
+	if (StepVrMocapDataRecord.IsRecord())
+	{
+		FStepMocapData StepMocapData;
+		StepMocapData.SetData(InData);
+
+		StepVrMocapDataRecord.AddData(StepMocapData);
+		StepVrMocapDataRecord.SaveLineData();
+	}
 }
-
-
-
-
 
 
 
@@ -583,8 +647,30 @@ void FStepMocapStream::ConnectToServices()
 
 	ServerConnect->Connect2Server(TCHAR_TO_ANSI(*UsedServerInfo.ServerIP), UsedServerInfo.ServerPort);
 
-	FString Message = FString::Printf(TEXT("StepVrMocap Connect %s"), *UsedServerInfo.ServerIP);
-	
+	//录制文件
+	CommandHandle = STEPVR_GLOBAL->GetCommandDelegateStr().AddLambda([&](ECommandState NewState, FString Values)
+		{
+			if (NewState != ECommandState::Stat_MocapRecord)
+			{
+				return;
+			}
+
+			if (Values.Equals(UsedServerInfo.ServerIP))
+			{
+				bRecord = true;
+				StepVrMocapDataRecord.CreateFile("Mocap");
+			}
+
+			if (Values.IsEmpty() && bRecord)
+			{
+				bRecord = false;
+				StepVrMocapDataRecord.CloseFile();
+			}
+		});
+
+
+	//LOG
+	FString Message = FString::Printf(TEXT("StepVrMocap Connect %s"), *UsedServerInfo.ServerIP);	
 	StepMocapSpace::ShowMessage(Message);
 }
 void FStepMocapStream::DisconnectToServer()
@@ -600,6 +686,11 @@ void FStepMocapStream::EngineBegineFrame()
 	if (!ServerConnect.IsValid() ||
 		!ServerConnect->IsConnected())
 	{
+		if (bRecord)
+		{
+			TArray<FTransform> NoneArray;
+			AddRecordData(NoneArray);
+		}
 		return;
 	}
 
@@ -607,13 +698,10 @@ void FStepMocapStream::EngineBegineFrame()
 	if (ServerConnect->HasBodyData())
 	{
 		ServerConnect->GetBodyData(CacheBodyFrameData);
-
-		//同步数据
-		//if (UsedServerInfo.StepControllState == FStepControllState::Local_Replicate_Y && 
-		//	STEPVR_SERVER_IsValid)
-		//{
-		//	STEPVR_SERVER->StepMocapSendData(CacheBodyFrameData);
-		//}
+		if (bRecord)
+		{
+			AddRecordData(CacheBodyFrameData);
+		}
 	}
 
 	//手套数据
