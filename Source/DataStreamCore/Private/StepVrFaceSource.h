@@ -733,6 +733,9 @@ public:
 	FLiveLinkBaseStaticData* GetStaticData(const FName& FaceID);
 	FLiveLinkBaseFrameData* GetFrameData(const FName& FaceID);
 
+	//面部进行缩放
+	void SetFaceScale(const FName& FaceID,float NewScale);
+
 private:
 	void InitLiveLinkSource();
 
@@ -750,4 +753,6 @@ private:
 	TMap<FName, FLiveLinkBaseFrameData> BaseFrameDatas;
 	/** The source used to publish events from the remote socket */
 	//TSharedPtr<ILiveLinkSourceARKit> Source;
+
+	TMap<FName,float>	BaseScale;
 };

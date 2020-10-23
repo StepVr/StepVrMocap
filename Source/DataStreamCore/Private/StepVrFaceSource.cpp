@@ -106,6 +106,11 @@ void FStepListenerToAppleARKit::Tick(float DeltaTime)
 			{
 				FLiveLinkBaseFrameData& BaseFrameData = BaseFrameDatas.FindOrAdd(SubjectName);
 				FLiveLinkBaseStaticData& BaseStaticData = BaseStaticDatas.FindOrAdd(SubjectName);
+				float TempScale = 1.f;
+				if (auto ScalePtr = BaseScale.Find(SubjectName))
+				{
+					TempScale = *ScalePtr;
+				}
 
 				//缓存数据FrameData
 				BaseFrameData.WorldTime = FPlatformTime::Seconds();
@@ -123,7 +128,7 @@ void FStepListenerToAppleARKit::Tick(float DeltaTime)
 				{
 					if(BlendShapes.Contains((EARFaceBlendShape)Shape))
 					{
-						const float CurveValue = BlendShapes.FindChecked((EARFaceBlendShape)Shape);
+						const float CurveValue = BlendShapes.FindChecked((EARFaceBlendShape)Shape) * TempScale;
 						BaseFrameData.PropertyValues.Add(CurveValue); 
 
 						const FName ShapeName = ParseEnumName(EnumPtr->GetNameByValue(Shape));
@@ -177,6 +182,11 @@ FLiveLinkBaseFrameData* FStepListenerToAppleARKit::GetFrameData(const FName& Fac
 	auto TempPtr = BaseFrameDatas.Find(FaceID);
 
 	return TempPtr;
+}
+
+void FStepListenerToAppleARKit::SetFaceScale(const FName& FaceID, float NewScale)
+{
+	BaseScale.FindOrAdd(FaceID) = NewScale;
 }
 
 void FStepListenerToAppleARKit::InitLiveLinkSource()

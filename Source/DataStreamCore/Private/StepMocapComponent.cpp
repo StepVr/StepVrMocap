@@ -31,6 +31,16 @@ UStepMocapComponent::~UStepMocapComponent()
 	StopRecord();
 }
 
+void UStepMocapComponent::MocapRefreshSkeletonScale()
+{
+	Orders.Enqueue(Type_GetSkeletonScale);
+}
+
+void UStepMocapComponent::MocapGetSkeletonScale(FVector & Out)
+{
+	Out = SkeletonScale;
+}
+
 void UStepMocapComponent::StartRecord(const FString& RecordName)
 {
 	if (bRecord)
@@ -118,6 +128,12 @@ void UStepMocapComponent::MocapSetNewFaceID(const FString& InNewFaceID)
 	Orders.Enqueue(Type_NewFaceID);
 }
 
+void UStepMocapComponent::MocapSetNewFaceScale(float NewScale)
+{
+	FaceScale = NewScale;
+	Orders.Enqueue(Type_ScaleFace);
+}
+
 bool UStepMocapComponent::IsMocapReplicate()
 {
 	return bMocapReplicate;
@@ -168,6 +184,16 @@ void UStepMocapComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 		case  EOrderType::Type_NewFaceID:
 		{
 			StepDataStream->MocapSetNewFaceID(NewFaceID);
+		}
+		break;
+		case  EOrderType::Type_ScaleFace:
+		{
+			StepDataStream->MocapSetNewFaceScale(FaceScale);
+		}
+		break;
+		case  EOrderType::Type_GetSkeletonScale:
+		{
+			SkeletonScale = StepDataStream->MocapGetSkeletonScale();
 		}
 		break;
 		}

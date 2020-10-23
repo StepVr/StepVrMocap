@@ -15,6 +15,10 @@ enum EOrderType
 	Type_UpdateSkt,
 	Type_NewIP,
 	Type_NewFaceID,
+	//面部缩放
+	Type_ScaleFace,
+	//获取骨骼缩放
+	Type_GetSkeletonScale,
 };
 
 
@@ -38,6 +42,18 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void MocapSetNewFaceID(const FString& InNewFaceID);
+
+	UFUNCTION(BlueprintCallable)
+	void MocapSetNewFaceScale(float NewScale);
+
+	/**
+	 * 刷新后,获取骨骼缩放
+	 * MocapGetSkeletonScale
+	 */
+	UFUNCTION(BlueprintCallable)
+	void MocapRefreshSkeletonScale();
+	UFUNCTION(BlueprintPure)
+	void MocapGetSkeletonScale(FVector& Out);
 
 	UFUNCTION(BlueprintCallable)
 	void StartRecord(const FString& RecordName);
@@ -65,6 +81,12 @@ protected:
 	//录制数据
 	bool bRecord = false;
 	FString strRecordName;
+
+	//骨骼缩放
+	FVector SkeletonScale = FVector::OneVector;
+
+	//面部缩放
+	float FaceScale = 1.f;
 
 	//缓存指令
 	TQueue<EOrderType> Orders;

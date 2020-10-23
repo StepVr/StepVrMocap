@@ -29,6 +29,8 @@ public:
 	void MocapTPose();
 	void MocapSetNewIP(const FString& InData);
 	void MocapSetNewFaceID(const FString& InData);
+	void MocapSetNewFaceScale(float InData);
+	FVector MocapGetSkeletonScale();
 
 
 public:
@@ -151,7 +153,7 @@ private:
 
 	//缩放
 	float						CachedSkeletonScaleDeltaTime = 0.f;
-
+	FVector						CacheSkeletonScale = FVector::OneVector;
 	//联机
 	FStepControllState StepControllState = FStepControllState::Local_UnReplicate;
 

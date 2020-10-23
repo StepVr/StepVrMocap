@@ -108,6 +108,19 @@ void FAnimNode_StepDataStream::MocapSetNewFaceID(const FString& InData)
 	FaceID = FName(*InData);
 }
 
+void FAnimNode_StepDataStream::MocapSetNewFaceScale(float InData)
+{
+	if (FStepListenerToAppleARKit* StepListener = FStepDataStreamModule::GetStepListenerToAppleARKit())
+	{
+		StepListener->SetFaceScale(FaceID,InData);
+	}
+}
+
+FVector FAnimNode_StepDataStream::MocapGetSkeletonScale()
+{
+	return CacheSkeletonScale;
+}
+
 void FAnimNode_StepDataStream::Connected()
 {
 	FMocapServerInfo MocapServerInfo;
@@ -263,7 +276,7 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 	}
 
 	//Scale 
-	FVector CurScale = mSkeletonBinding.GetSkeletonScale();
+	CacheSkeletonScale = mSkeletonBinding.GetSkeletonScale();
 
 	//更新动捕姿态
 	if (StopSkeletonCapture == false)
@@ -301,9 +314,9 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 			case FStepDataToSkeletonBinding::EMapBoneType::Bone_Body:
 			{
 				MapBoneData.BoneData.SetToRelativeTransform(FTransform::Identity);
-				if (CurScale.X > 0.1)
+				if (CacheSkeletonScale.X > 0.1)
 				{
-					MapBoneData.BoneData.ScaleTranslation(1.f / CurScale.X);
+					MapBoneData.BoneData.ScaleTranslation(1.f / CacheSkeletonScale.X);
 				}
 			}
 			break;
@@ -327,11 +340,11 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 		if (ApplyScale && CachedSkeletonScaleDeltaTime > 1)
 		{
 			CachedSkeletonScaleDeltaTime = 0.f;
-			AsyncTask(ENamedThreads::GameThread, [&, CurScale]()
+			AsyncTask(ENamedThreads::GameThread, [&]()
 				{
 					if (CacheAnimInstanceProxy && CacheAnimInstanceProxy->GetSkelMeshComponent())
 					{
-						CacheAnimInstanceProxy->GetSkelMeshComponent()->SetWorldScale3D(CurScale);
+						CacheAnimInstanceProxy->GetSkelMeshComponent()->SetWorldScale3D(CacheSkeletonScale);
 					}
 				});
 		}
