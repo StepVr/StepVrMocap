@@ -1,6 +1,9 @@
 ﻿#include "AnimNode_StepVrDataStream.h"
+
+#include "FaceExc/StepVrFaceSource.h"
+#include "FaceExc/StepVrFaceSourceUDP.h"
+
 #include "StepVrDataStreamModule.h"
-#include "StepVrFaceSource.h"
 #include "StepMocapComponent.h"
 #include "StepVrSkt.h"
 
@@ -18,7 +21,19 @@
 #include "Launch/Resources/Version.h"
 
 
+
 TMap<uint32, FAnimNode_StepDataStream*> FAnimNode_StepDataStream::RegistStepDataStreams;
+
+void FAnimNode_StepDataStream::MocapStopSkeletonCapture(bool bStop)
+{
+	StopSkeletonCapture = bStop;
+}
+
+void FAnimNode_StepDataStream::MocapEnableSkeletonScale(bool IsEnable)
+{
+	ApplyScale = IsEnable;
+}
+
 FAnimNode_StepDataStream* FAnimNode_StepDataStream::GetStepDataStream(uint32 ActorGUID)
 {
 	auto StepDataStream = RegistStepDataStreams.Find(ActorGUID);
@@ -99,6 +114,11 @@ void FAnimNode_StepDataStream::MocapTPose()
 
 void FAnimNode_StepDataStream::MocapSetNewIP(const FString& InData)
 {
+	if (InData.Equals(ServerName.ToString()))
+	{
+		return;
+	}
+
 	ServerName = FName(*InData);
 	Connected();
 }
@@ -113,6 +133,47 @@ void FAnimNode_StepDataStream::MocapSetNewFaceScale(float InData)
 	if (FStepListenerToAppleARKit* StepListener = FStepDataStreamModule::GetStepListenerToAppleARKit())
 	{
 		StepListener->SetFaceScale(FaceID,InData);
+	}	
+	if (FStepListenerToSelf* StepListener = FStepDataStreamModule::GetStepListenerToSelf())
+	{
+		StepListener->SetFaceScale(FaceID, InData);
+	}
+}
+
+void FAnimNode_StepDataStream::MocapChangeFaceType(EUseFaceType InUseFaceType)
+{
+	UseFaceType = InUseFaceType;
+}
+
+void FAnimNode_StepDataStream::MocapSetEnableFace(EARFaceBlendShape ARFaceBlendShape, bool Enable)
+{
+	//只有关闭的情况才需要修改
+	if (Enable == false)
+	{
+		NewFaceState.FindOrAdd(ARFaceBlendShape) = Enable;
+	}
+	else
+	{
+		NewFaceState.Remove(ARFaceBlendShape);
+	}
+}
+
+void FAnimNode_StepDataStream::MocapSetSkeletonScale(FVector NewScale)
+{	
+	//Scale
+	if (GWorld && GWorld->WorldType != EWorldType::Editor)
+	{
+		if (ApplyScale && CachedSkeletonScaleDeltaTime > 1)
+		{
+			CachedSkeletonScaleDeltaTime = 0.f;
+			AsyncTask(ENamedThreads::GameThread, [&]()
+				{
+					if (CacheAnimInstanceProxy && CacheAnimInstanceProxy->GetSkelMeshComponent())
+					{
+						CacheAnimInstanceProxy->GetSkelMeshComponent()->SetWorldScale3D(CacheSkeletonScale);
+					}
+				});
+		}
 	}
 }
 
@@ -127,10 +188,7 @@ void FAnimNode_StepDataStream::Connected()
 
 	MocapServerInfo.ServerIP = ServerName.ToString();
 	MocapServerInfo.ServerPort = ServerPort;
-
 	MocapServerInfo.EnableHand = EnableHand;
-	MocapServerInfo.EnableFace = EnableFace;
-
 	MocapServerInfo.StepControllState = StepControllState;
 	MocapServerInfo.SktName = SktName;
 
@@ -179,12 +237,6 @@ void FAnimNode_StepDataStream::BindSkeleton(FAnimInstanceProxy* AnimInstanceProx
 		BindMocapHandBones.Empty();
 	}
 	mSkeletonBinding.BindToSkeleton(AnimInstanceProxy, BindMocapBones, BindMocapHandBones);
-	
-	//if (EnableFace)
-	//{
-	//	//绑定顶点变形 
-	//	mSkeletonBinding.BindToFaceMorghTarget(AnimInstanceProxy, BindMorphTarget);
-	//}
 }
 
 void FAnimNode_StepDataStream::Initialize_AnyThread(const FAnimationInitializeContext& Context)
@@ -334,40 +386,55 @@ void FAnimNode_StepDataStream::EvaluateComponentSpace_AnyThread(FComponentSpaceP
 		}
 	}
 
-	//Scale
-	if (GWorld && GWorld->WorldType != EWorldType::Editor)
-	{
-		if (ApplyScale && CachedSkeletonScaleDeltaTime > 1)
-		{
-			CachedSkeletonScaleDeltaTime = 0.f;
-			AsyncTask(ENamedThreads::GameThread, [&]()
-				{
-					if (CacheAnimInstanceProxy && CacheAnimInstanceProxy->GetSkelMeshComponent())
-					{
-						CacheAnimInstanceProxy->GetSkelMeshComponent()->SetWorldScale3D(CacheSkeletonScale);
-					}
-				});
-		}
-	}
-
-
 	//更新面部捕捉
-	if (EnableFace)
 	{
-		if (FStepListenerToAppleARKit* StepListener = FStepDataStreamModule::GetStepListenerToAppleARKit())
-		{
-			FLiveLinkBaseStaticData* BaseStaticData = StepListener->GetStaticData(FaceID);
-			FLiveLinkBaseFrameData* BaseFrameData = StepListener->GetFrameData(FaceID);
+		FLiveLinkBaseStaticData* BaseStaticData = nullptr;
+		FLiveLinkBaseFrameData* BaseFrameData = nullptr;
 
-			if (CurrentRetargetAsset && BaseStaticData && BaseFrameData)
+		switch (UseFaceType)
+		{
+		case EUseFaceType::Face_None:
+			break;
+		case EUseFaceType::Face_Iphone:
+			if (FStepListenerToAppleARKit* StepListener = FStepDataStreamModule::GetStepListenerToAppleARKit())
 			{
-				auto CompactPose = Output.Pose.GetPose();
-				CurrentRetargetAsset->BuildPoseAndCurveFromBaseData(CachedDeltaTime, BaseStaticData, BaseFrameData, CompactPose, Output.Curve);
-				// Reset so that if we evaluate again we don't "create" time inside of the retargeter
-				CachedDeltaTime = 0.f;
+				BaseStaticData = StepListener->GetStaticData(FaceID);
+				BaseFrameData = StepListener->GetFrameData(FaceID);
 			}
+			break;
+		case EUseFaceType::Face_Voice:
+			if (FStepListenerToSelf* StepListener = FStepDataStreamModule::GetStepListenerToSelf())
+			{
+				BaseStaticData = StepListener->GetStaticData(FaceID);
+				BaseFrameData = StepListener->GetFrameData(FaceID);
+			}
+			break;
 		}
-	}
+
+		if (CurrentRetargetAsset && BaseStaticData && BaseFrameData)
+		{
+			auto BlendShapePtr = StaticEnum<EARFaceBlendShape>();
+			for (auto TempPair : NewFaceState)
+			{
+				FName CurName = BlendShapePtr->GetNameByValue((int32)TempPair.Key);
+
+				for (int32 Index = 0; Index < BaseStaticData->PropertyNames.Num(); Index++)
+				{
+					if(BaseStaticData->PropertyNames[Index].IsEqual(CurName))
+					{
+						BaseFrameData->PropertyValues[Index] = 0;
+						break;
+					}
+				}
+			}
+
+
+			auto CompactPose = Output.Pose.GetPose();
+			CurrentRetargetAsset->BuildPoseAndCurveFromBaseData(CachedDeltaTime, BaseStaticData, BaseFrameData, CompactPose, Output.Curve);
+			// Reset so that if we evaluate again we don't "create" time inside of the retargeter
+			CachedDeltaTime = 0.f;
+		}
+	};
 }
 
 void FAnimNode_StepDataStream::GatherDebugData(FNodeDebugData& DebugData)

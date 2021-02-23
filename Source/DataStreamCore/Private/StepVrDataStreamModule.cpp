@@ -1,10 +1,12 @@
 ﻿#include "StepVrDataStreamModule.h"
-#include "StepVrFaceSource.h"
+#include "FaceExc/StepVrFaceSourceUDP.h"
+#include "FaceExc/StepVrFaceSource.h"
 #include "StepMocapDefine.h"
 #include "StepVrSkt.h"
 
 
 #include "Engine.h"
+
 
 
 static void* CPPUdpClientDllHandle = nullptr;
@@ -56,6 +58,7 @@ void FStepDataStreamModule::StartupModule()
 
 	//ARKit
 	FStepListenerToAppleARKit::CreateRemoteListener();
+	FStepListenerToSelf::CreateRemoteListener();
 }
 
 
@@ -67,6 +70,11 @@ void FStepDataStreamModule::ShutdownModule()
 FStepListenerToAppleARKit* FStepDataStreamModule::GetStepListenerToAppleARKit()
 {
 	return FStepListenerToAppleARKit::CreateRemoteListener();
+}
+
+FStepListenerToSelf* FStepDataStreamModule::GetStepListenerToSelf()
+{
+	return FStepListenerToSelf::CreateRemoteListener();
 }
 
 IMPLEMENT_MODULE(FStepDataStreamModule, StepVrDataStreamCore);

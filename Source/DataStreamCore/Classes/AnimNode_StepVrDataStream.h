@@ -3,11 +3,22 @@
 #include "StepVrStream.h"
 #include "StepMocapDefine.h"
 
+#include "ARTrackable.h"
 #include "LiveLinkRetargetAsset.h"
+
 #include "AnimNode_StepVrDataStream.generated.h"
 
 
 class UStepReplicatedComponent;
+
+UENUM(BlueprintType)
+enum class EUseFaceType : uint8
+{
+	Face_None,
+	Face_Iphone,
+	Face_Voice,
+};
+
 
 
 USTRUCT(BlueprintType)
@@ -25,11 +36,18 @@ public:
 	static void RegistStepDataStream(uint32 ActorGUID, FAnimNode_StepDataStream* Target);
 	static void UnRegistStepDataStream(uint32 ActorGUID);
 	static TMap<uint32, FAnimNode_StepDataStream*> RegistStepDataStreams;
+	
+	//修改动画相关数据
+	void MocapStopSkeletonCapture(bool bStop);
+	void MocapEnableSkeletonScale(bool IsEnable);
 	void MocapUpdateSkt();
 	void MocapTPose();
 	void MocapSetNewIP(const FString& InData);
 	void MocapSetNewFaceID(const FString& InData);
 	void MocapSetNewFaceScale(float InData);
+	void MocapChangeFaceType(EUseFaceType InUseFaceType);
+	void MocapSetEnableFace(EARFaceBlendShape ARFaceBlendShape, bool Enable);
+	void MocapSetSkeletonScale(FVector NewScale);
 	FVector MocapGetSkeletonScale();
 
 
@@ -40,20 +58,19 @@ public:
 	 * 服务器IP
 	 * 支持局域网IP
 	 */
-	UPROPERTY(EditAnywhere, Category = StepServer, meta = (PinShownByDefault))
+	UPROPERTY(EditAnywhere, Category = StepServer)
 	FName ServerName = TEXT("127.0.0.1");
 
 	/**
 	 * 服务器端口号
 	 * 暂时默认无需修改
 	 */
-	UPROPERTY(EditAnywhere, Category = StepServer)
 	int32 ServerPort = 9516;
 
 	/**
 	* 是否适配人物实际大小
 	*/
-	UPROPERTY(EditAnywhere, Category = StepServer, meta = (PinShownByDefault))
+	UPROPERTY(EditAnywhere, Category = StepServer)
 	bool ApplyScale = false;
 
 	/**
@@ -108,12 +125,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = StepMocapBindBones)
 	TMap<FString, FString>	BindMorphTarget;
 
-	/**
-	 * ARFace面部捕捉
-	 */
-	//是否开启面部捕捉
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category = ARFace)
-	bool EnableFace = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ARFace)
+	EUseFaceType UseFaceType = EUseFaceType::Face_None;
 
 	//重定向曲线
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, NoClear, Category = ARFace, meta = (NeverAsPin))
@@ -154,6 +167,7 @@ private:
 	//缩放
 	float						CachedSkeletonScaleDeltaTime = 0.f;
 	FVector						CacheSkeletonScale = FVector::OneVector;
+
 	//联机
 	FStepControllState StepControllState = FStepControllState::Local_UnReplicate;
 
@@ -162,5 +176,7 @@ private:
 
 	//面部更新间隔
 	float CachedDeltaTime = 0.f;
+
+	TMap<EARFaceBlendShape, bool> NewFaceState;
 };
 

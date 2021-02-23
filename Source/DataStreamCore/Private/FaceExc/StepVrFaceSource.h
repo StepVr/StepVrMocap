@@ -9,7 +9,6 @@
 #include "LiveLinkTypes.h"
 
 
-
 /**
  * Serializes data in network byte order form into a buffer
  */
@@ -737,6 +736,7 @@ public:
 	void SetFaceScale(const FName& FaceID,float NewScale);
 
 private:
+
 	void InitLiveLinkSource();
 
 	/** Socket that is read from to publish remote data to this local LiveLinkClient */
@@ -750,7 +750,7 @@ private:
 	//FLiveLinkBaseFrameData		BaseFrameData;
 
 	TMap<FName, FLiveLinkBaseStaticData> BaseStaticDatas;
-	TMap<FName, FLiveLinkBaseFrameData> BaseFrameDatas;
+	TMap<FName, FLiveLinkBaseFrameData>  BaseFrameDatas;
 	/** The source used to publish events from the remote socket */
 	//TSharedPtr<ILiveLinkSourceARKit> Source;
 

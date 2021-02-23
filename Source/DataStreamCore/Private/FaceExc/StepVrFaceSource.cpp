@@ -3,6 +3,7 @@
 
 
 
+
 const uint32 Max_receive_ARKitMessage = 2048;
 const uint32 Min_receive_ARKitMessage = 260;
 
@@ -126,10 +127,10 @@ void FStepListenerToAppleARKit::Tick(float DeltaTime)
 				// Iterate through all of the blend shapes copying them into the LiveLink data type
 				for (int32 Shape = 0; Shape < (int32)EARFaceBlendShape::MAX; Shape++)
 				{
-					if(BlendShapes.Contains((EARFaceBlendShape)Shape))
+					if(BlendShapes.Contains((EARFaceBlendShape)Shape)) 
 					{
 						const float CurveValue = BlendShapes.FindChecked((EARFaceBlendShape)Shape) * TempScale;
-						BaseFrameData.PropertyValues.Add(CurveValue); 
+						BaseFrameData.PropertyValues.Add(FMath::Clamp(CurveValue,0.f,1.f));
 
 						const FName ShapeName = ParseEnumName(EnumPtr->GetNameByValue(Shape));
 						BaseStaticData.PropertyNames.Add(ShapeName);
@@ -166,6 +167,8 @@ bool FStepListenerToAppleARKit::InitReceiveSocket()
 				*Addr->ToString(true), SocketSubsystem->GetSocketError());
 		}
 	}
+
+	
 
 	return RecvSocket != nullptr;
 }

@@ -3,6 +3,10 @@
 
 
 class FStepListenerToAppleARKit;
+class FStepListenerToSelf;
+
+
+
 class FStepDataStreamModule : public IModuleInterface
 {
 
@@ -11,4 +15,5 @@ public:
 	void ShutdownModule() override;
 
 	static FStepListenerToAppleARKit* GetStepListenerToAppleARKit();
+	static FStepListenerToSelf* GetStepListenerToSelf();
 };

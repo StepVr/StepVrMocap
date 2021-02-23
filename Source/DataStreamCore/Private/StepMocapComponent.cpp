@@ -31,9 +31,21 @@ UStepMocapComponent::~UStepMocapComponent()
 	StopRecord();
 }
 
+void UStepMocapComponent::MocapStopSkeletonCapture(bool bStop)
+{
+	EnableStream = bStop;
+	Orders.Enqueue(Type_EnableStream);
+}
+
 void UStepMocapComponent::MocapRefreshSkeletonScale()
 {
 	Orders.Enqueue(Type_GetSkeletonScale);
+}
+
+void UStepMocapComponent::MocapSetScaleEnable(bool NewState)
+{
+	EnableSkeletonScale = NewState;
+	Orders.Enqueue(Type_EnableSkeletonScale);
 }
 
 void UStepMocapComponent::MocapGetSkeletonScale(FVector & Out)
@@ -134,6 +146,18 @@ void UStepMocapComponent::MocapSetNewFaceScale(float NewScale)
 	Orders.Enqueue(Type_ScaleFace);
 }
 
+void UStepMocapComponent::MocapSetEnableFace(bool Enable, EARFaceBlendShape ARFaceBlendShape)
+{
+	NewFaceState.FindOrAdd(ARFaceBlendShape) = Enable;
+	Orders.Enqueue(Type_EnableFace);
+}
+
+void UStepMocapComponent::MocapChangeFaceType(EUseFaceTypeEx UseFaceType)
+{
+	UseFaceTypeEx = UseFaceType;
+	Orders.Enqueue(Type_ChangeFace);
+}
+
 bool UStepMocapComponent::IsMocapReplicate()
 {
 	return bMocapReplicate;
@@ -166,6 +190,16 @@ void UStepMocapComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 
 		switch (*Temp)
 		{
+		case EOrderType::Type_EnableStream:
+		{
+			StepDataStream->MocapStopSkeletonCapture(EnableStream);
+		}
+		break;
+		case EOrderType::Type_EnableSkeletonScale:
+		{
+			StepDataStream->MocapEnableSkeletonScale(EnableSkeletonScale);
+		}
+		break;
 		case EOrderType::Type_Tpose:
 		{
 			StepDataStream->MocapTPose();
@@ -185,10 +219,24 @@ void UStepMocapComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 		{
 			StepDataStream->MocapSetNewFaceID(NewFaceID);
 		}
+		break;		
+		case  EOrderType::Type_EnableFace:
+		{
+			for (auto TemoPair : NewFaceState)
+			{
+				StepDataStream->MocapSetEnableFace(TemoPair.Key, TemoPair.Value);
+			}
+			NewFaceState.Empty();
+		}
 		break;
 		case  EOrderType::Type_ScaleFace:
 		{
 			StepDataStream->MocapSetNewFaceScale(FaceScale);
+		}
+		break;
+		case  EOrderType::Type_ChangeFace:
+		{
+			StepDataStream->MocapChangeFaceType((EUseFaceType)UseFaceTypeEx);
 		}
 		break;
 		case  EOrderType::Type_GetSkeletonScale:
